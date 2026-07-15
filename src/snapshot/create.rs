@@ -1,13 +1,13 @@
 use std::{
     env::current_dir,
-    fs::{self, create_dir_all, File},
+    fs::{self, File, create_dir_all},
     io::{BufReader, BufWriter, Seek, SeekFrom, Write},
     path::Path,
 };
 
 use chrono::Utc;
 use color_eyre::Section;
-use eyre::{eyre, Context};
+use eyre::{Context, eyre};
 use glob::glob;
 use itertools::Itertools;
 use strum::IntoEnumIterator;
@@ -22,7 +22,7 @@ use crate::{
     context::{AppContext, WorkingDir},
     db,
     git::{self, Repository},
-    snapshot::{types::SnapshotFile, utils::hash_as_hex, MANIFEST_FILE, MYSQL_DUMPS_DIR},
+    snapshot::{MANIFEST_FILE, MYSQL_DUMPS_DIR, types::SnapshotFile, utils::hash_as_hex},
 };
 
 #[tracing::instrument(skip_all)]
@@ -39,7 +39,7 @@ pub async fn create_snapshot(context: AppContext, options: SnapshotOptions) -> e
     let temp_dir_name = temp_dir
         .path()
         .file_name()
-        .map(|name| name.to_string_lossy().to_string())
+        .map(|name| name.display().to_string())
         .unwrap_or_else(|| temp_dir.path().display().to_string());
 
     tracing::info!(
