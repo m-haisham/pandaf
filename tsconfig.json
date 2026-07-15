@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "types": ["node"],
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts"],
 }
