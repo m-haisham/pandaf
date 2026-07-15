@@ -71,7 +71,7 @@ pub async fn print_branches(mut context: AppContext) -> eyre::Result<()> {
 
         let value = format!("{}{}", style.apply_to(branch), commit_output);
 
-        draw.labeled_styled(project.name(), &value, style)?;
+        draw.labeled_styled(project.name(), &value, &style)?;
     }
 
     Ok(())

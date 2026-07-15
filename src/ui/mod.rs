@@ -69,7 +69,7 @@ impl<'a> BrushContext<'a> {
 
 impl BrushContext<'_> {
     #[inline]
-    pub fn draw<T>(&self, drawable: T) -> eyre::Result<()>
+    pub fn draw<T>(&self, drawable: &T) -> eyre::Result<()>
     where
         T: traits::Draw,
     {
@@ -112,7 +112,7 @@ impl BrushContext<'_> {
         &self,
         label: &str,
         message: &str,
-        style: console::Style,
+        style: &console::Style,
     ) -> eyre::Result<()> {
         let indent = "  ".repeat(self.indent_level);
 
@@ -133,12 +133,25 @@ impl BrushContext<'_> {
     }
 
     pub fn error_line(&self, message: &str) -> eyre::Result<()> {
-        let label = "Error !!";
+        let label = "!!!";
 
         self.term.write_line(
-            &Style::new()
-                .red()
-                .apply_to(format!("{label:>LABEL_WIDTH$} {message}"))
+            &self
+                .styles
+                .error(&format!("{label:>LABEL_WIDTH$} {message}"))
+                .to_string(),
+        )?;
+
+        Ok(())
+    }
+
+    pub fn warning_line(&self, message: &str) -> eyre::Result<()> {
+        let label = "!";
+
+        self.term.write_line(
+            &self
+                .styles
+                .warning(&format!("{label:>LABEL_WIDTH$} {message}"))
                 .to_string(),
         )?;
 

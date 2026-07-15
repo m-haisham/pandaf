@@ -92,7 +92,7 @@ pub async fn checkout(
             migrate_output
         );
 
-        draw.labeled_styled(project.name(), &value, line_style)?;
+        draw.labeled_styled(project.name(), &value, &line_style)?;
     }
 
     Ok(())

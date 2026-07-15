@@ -3,16 +3,16 @@ use console::StyledObject;
 use super::BrushContext;
 
 pub trait Draw {
-    fn draw(&self, draw: &BrushContext<'_>) -> eyre::Result<()> {
-        if draw.is_verbose() {
-            self.draw_verbose(draw)
+    fn draw(&self, brush: &BrushContext<'_>) -> eyre::Result<()> {
+        if brush.is_verbose() {
+            self.draw_verbose(brush)
         } else {
-            self.draw_compact(draw)
+            self.draw_compact(brush)
         }
     }
 
-    fn draw_compact(&self, draw: &BrushContext<'_>) -> eyre::Result<()>;
-    fn draw_verbose(&self, draw: &BrushContext<'_>) -> eyre::Result<()>;
+    fn draw_compact(&self, brush: &BrushContext<'_>) -> eyre::Result<()>;
+    fn draw_verbose(&self, brush: &BrushContext<'_>) -> eyre::Result<()>;
 }
 
 impl Draw for &str {
