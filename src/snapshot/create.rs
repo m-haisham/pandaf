@@ -14,7 +14,7 @@ use crate::{
     compress,
     context::AppContext,
     db,
-    snapshot::{types::SnapshotFile, utils::hash_file_as_hex, MANIFEST_FILE, MYSQL_DUMPS_DIR},
+    snapshot::{types::SnapshotFile, utils::hash_as_hex, MANIFEST_FILE, MYSQL_DUMPS_DIR},
 };
 
 #[tracing::instrument(skip_all)]
@@ -106,7 +106,9 @@ pub async fn store_database_dumps(temp_dir: &TempDir) -> eyre::Result<Vec<MysqlD
             .wrap_err("Failed to get file metadata")?;
 
         let size = metadata.len();
-        let hash = hash_file_as_hex(file).await?;
+
+        let mut reader = BufReader::new(file);
+        let hash = hash_as_hex(&mut reader)?;
 
         let dump = MysqlDump {
             file: SnapshotFile {

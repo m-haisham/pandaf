@@ -1,15 +1,11 @@
 use eyre::{eyre, Context};
 use hex::ToHex;
 use sha2::Digest;
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-};
+use std::io::Read;
 
-pub async fn hash_file_as_hex(file: File) -> eyre::Result<String> {
+pub fn hash_as_hex<R: Read>(reader: &mut R) -> eyre::Result<String> {
     use sha2::Sha256;
 
-    let mut reader = BufReader::new(file);
     let mut hasher = Sha256::new();
     let mut buffer = [0u8; 4096];
 
