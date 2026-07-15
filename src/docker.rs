@@ -48,10 +48,15 @@ impl Container {
     }
 }
 
-pub async fn mysql_dump(database: &str, password: &str) -> eyre::Result<String> {
+pub async fn mysql_dump(
+    compose_file: &str,
+    database: &str,
+    password: &str,
+) -> eyre::Result<String> {
     let password = format!("-p{}", password);
 
     let mut cmd = tokio::process::Command::new("docker-compose");
+    cmd.args(["-f", compose_file]);
     cmd.args(["exec", "hbt-service-mysql", "mysqldump"]);
     cmd.args(["-u", "root"]);
     cmd.args([&password]);
@@ -69,10 +74,16 @@ pub async fn mysql_dump(database: &str, password: &str) -> eyre::Result<String> 
     }
 }
 
-pub async fn mysql_restore(database: &str, password: &str, dump: &[u8]) -> eyre::Result<()> {
+pub async fn mysql_restore(
+    compose_file: &str,
+    database: &str,
+    password: &str,
+    dump: &[u8],
+) -> eyre::Result<()> {
     let password = format!("-p{}", password);
 
     let mut cmd = tokio::process::Command::new("docker-compose");
+    cmd.args(["-f", compose_file]);
     cmd.args(["exec", "-T", "hbt-service-mysql", "mysql"]);
     cmd.args(["-u", "root"]);
     cmd.args([&password]);

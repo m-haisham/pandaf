@@ -1,4 +1,5 @@
 use console::Term;
+use directories::ProjectDirs;
 use eyre::{eyre, Context};
 
 use crate::{
@@ -9,6 +10,7 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct AppContext {
+    pub name: String,
     pub verbose: u8,
     pub non_interactive: bool,
     pub config: Config,
@@ -24,6 +26,7 @@ impl AppContext {
         let term = Term::stdout();
         let storage = Storage::local()?;
         Ok(Self {
+            name: env!("CARGO_PKG_NAME").to_string(),
             verbose,
             non_interactive,
             config,
@@ -33,8 +36,9 @@ impl AppContext {
         })
     }
 
-    pub fn is_verbose(&self) -> bool {
-        self.verbose > 0
+    pub fn dirs(&self) -> eyre::Result<ProjectDirs> {
+        directories::ProjectDirs::from("travel", "Hummingbird", &self.name)
+            .ok_or_else(|| eyre!("Failed to retreive application directory"))
     }
 }
 

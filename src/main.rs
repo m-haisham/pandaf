@@ -12,6 +12,7 @@ mod infra;
 mod kebab;
 mod project;
 mod setup;
+mod snapshot;
 mod storage;
 mod ui;
 mod update;
@@ -281,7 +282,11 @@ async fn project_command(
                     .wrap_err("Failed to create dump directory")?;
             }
 
-            let dump = docker::mysql_dump(project.name(), &infra_env.mysql_db_password).await?;
+            let compose_file = Container::Infra.compose_file()?;
+
+            let dump =
+                docker::mysql_dump(&compose_file, project.name(), &infra_env.mysql_db_password)
+                    .await?;
             tracing::info!("Dumped {} bytes", dump.len());
 
             let dump = compress::gzip(&dump).await?;
@@ -310,7 +315,10 @@ async fn project_command(
             let dump = compress::gunzip(&dump).await?;
             tracing::info!("Decompressed dump to {} bytes", dump.len());
 
+            let compose_file = Container::Infra.compose_file()?;
+
             docker::mysql_restore(
+                &compose_file,
                 project.name(),
                 &infra_env.mysql_db_password,
                 dump.as_bytes(),

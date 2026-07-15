@@ -1,11 +1,13 @@
 use eyre::{eyre, WrapErr};
 use itertools::Itertools;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use strum::IntoEnumIterator;
 
 use crate::{
-    compress, docker,
+    compress,
+    docker::{self, Container},
+    env::get_hbt_docker_root,
     infra::set_current_infra,
     project::{read_project_env, Project, ProjectEnv},
 };
@@ -42,7 +44,7 @@ pub async fn get_configured_dbs() -> eyre::Result<Vec<ProjectDb>> {
 }
 
 #[tracing::instrument(skip(db, dump_dir))]
-pub async fn dump_project(db: &ProjectDb, dump_dir: &Path) -> eyre::Result<()> {
+pub async fn dump_project(db: &ProjectDb, dump_dir: &Path) -> eyre::Result<(String, PathBuf)> {
     let ProjectDb {
         project,
         db_database,
@@ -51,9 +53,12 @@ pub async fn dump_project(db: &ProjectDb, dump_dir: &Path) -> eyre::Result<()> {
 
     tracing::info!("Dumping {}...", project.name());
 
-    let dump_file = dump_dir.join(format!("{}.sql.gz", db_database));
+    let compose_file = Container::Infra.compose_file()?;
 
-    let dump = match docker::mysql_dump(db_database, db_password).await {
+    let dump_name = format!("{}.sql.gz", db_database);
+    let dump_file = dump_dir.join(&dump_name);
+
+    let dump = match docker::mysql_dump(&compose_file, db_database, db_password).await {
         Ok(dump) => dump,
         Err(e) => {
             return Err(eyre!(
@@ -75,12 +80,11 @@ pub async fn dump_project(db: &ProjectDb, dump_dir: &Path) -> eyre::Result<()> {
 
     tracing::info!("Wrote dump to file {}", dump_file.display());
 
-    Ok(())
+    Ok((dump_name, dump_file))
 }
 
 pub async fn restore(db: &ProjectDb, dump_path: &Path) -> eyre::Result<()> {
     tracing::info!("Restoring dump for {}", db.project.name());
-    set_current_infra()?;
 
     let dump = std::fs::read(dump_path)
         .map_err(|e| eyre!(e))
@@ -91,7 +95,16 @@ pub async fn restore(db: &ProjectDb, dump_path: &Path) -> eyre::Result<()> {
     let dump = compress::gunzip(&dump).await?;
     tracing::info!("Decompressed dump to {} bytes", dump.len());
 
-    docker::mysql_restore(&db.db_database, &db.db_password, dump.as_bytes()).await?;
+    let compose_file = Container::Infra.compose_file()?;
+
+    docker::mysql_restore(
+        &compose_file,
+        &db.db_database,
+        &db.db_password,
+        dump.as_bytes(),
+    )
+    .await?;
+
     tracing::info!("Restored dump to {}", db.project.name());
 
     Ok(())
