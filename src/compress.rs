@@ -4,10 +4,7 @@ use std::{
     io::{BufReader, BufWriter, Read, Write},
     path::Path,
 };
-use zip::{
-    write::{FileOptionExtension, FileOptions},
-    ZipWriter,
-};
+use zip::{write::FileOptions, ZipWriter};
 
 fn is_hidden(entry: &DirEntry) -> bool {
     entry
