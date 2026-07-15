@@ -34,6 +34,8 @@ export interface PdfKitOptions {
 export interface GeneratePdfOptions {
   marginTop?: number;
   marginBottom?: number;
+  marginLeft?: number;
+  marginRight?: number;
 }
 
 // `Props` maps a template name to its full data object:
@@ -171,6 +173,8 @@ export function createPdfKit<
       footer,
       marginTop: data.options?.marginTop,
       marginBottom: data.options?.marginBottom,
+      marginLeft: data.options?.marginLeft,
+      marginRight: data.options?.marginRight,
     });
   }
 
