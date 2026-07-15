@@ -8,4 +8,5 @@ pub use restore::restore_snapshot;
 pub use types::SnapshotOptions;
 
 pub(super) const MYSQL_DUMPS_DIR: &str = "mysql_dumps";
+pub(super) const REPOSITORY_FILES_DIR: &str = "repository_files";
 pub(super) const MANIFEST_FILE: &str = "manifest.json";

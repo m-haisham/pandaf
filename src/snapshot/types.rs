@@ -36,4 +36,11 @@ pub struct RepositorySnapshot {
     pub repository: Repository,
     pub origin: String,
     pub branch: String,
+    pub files: Vec<RepositoryFile>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RepositoryFile {
+    pub file: SnapshotFile,
+    pub restore_path: PathBuf,
 }

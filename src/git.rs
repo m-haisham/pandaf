@@ -15,7 +15,9 @@ use crate::{
     env,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, EnumIter)]
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, EnumIter,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum Repository {
     Gateway,

@@ -8,11 +8,15 @@ use std::{
 use chrono::Utc;
 use color_eyre::Section;
 use eyre::{eyre, Context};
+use glob::glob;
 use itertools::Itertools;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 
-use super::types::{MysqlDump, RepositorySnapshot, SnapshotManifest, SnapshotOptions};
+use super::{
+    types::{MysqlDump, RepositoryFile, RepositorySnapshot, SnapshotManifest, SnapshotOptions},
+    utils::get_pack_repository_file_path,
+};
 use crate::{
     compress,
     context::{AppContext, WorkingDir},
@@ -27,25 +31,25 @@ pub async fn create_snapshot(context: AppContext, options: SnapshotOptions) -> e
 
     let data_dir = context.data_dir()?;
 
-    let tempdir = tempfile::tempdir_in(&data_dir)
+    let temp_dir = tempfile::tempdir_in(&data_dir)
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to create temporary directory")?;
 
     // This is just for logging purposes, the performance impact is acceptable.
-    let tempdir_name = tempdir
+    let temp_dir_name = temp_dir
         .path()
         .file_name()
         .map(|name| name.to_string_lossy().to_string())
-        .unwrap_or_else(|| tempdir.path().display().to_string());
+        .unwrap_or_else(|| temp_dir.path().display().to_string());
 
     tracing::info!(
         "Created temporary directory to pack snapshot: {}",
-        tempdir_name
+        temp_dir_name
     );
 
-    let repositories = create_repository_snapshots(&context.working_dir).await?;
+    let repositories = create_repository_snapshots(&temp_dir, &context.working_dir).await?;
 
-    let mysql_dumps = store_database_dumps(&tempdir, &options)
+    let mysql_dumps = store_database_dumps(&temp_dir, &options)
         .await
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to store database dumps")?;
@@ -56,7 +60,7 @@ pub async fn create_snapshot(context: AppContext, options: SnapshotOptions) -> e
         created_at: Utc::now(),
     };
 
-    store_manifest(&tempdir, &manifest)
+    store_manifest(&temp_dir, &manifest)
         .await
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to store manifest")?;
@@ -65,7 +69,7 @@ pub async fn create_snapshot(context: AppContext, options: SnapshotOptions) -> e
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to create snapshot file")?;
 
-    let snapshot_file = pack_snapshot(&tempdir, snapshot_file)
+    let snapshot_file = pack_snapshot(&temp_dir, snapshot_file)
         .await
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to pack snapshot")?;
@@ -80,6 +84,7 @@ pub async fn create_snapshot(context: AppContext, options: SnapshotOptions) -> e
 
 #[tracing::instrument(skip_all)]
 pub async fn create_repository_snapshots(
+    temp_dir: &TempDir,
     working_dir: &WorkingDir,
 ) -> eyre::Result<Vec<RepositorySnapshot>> {
     tracing::info!("Creating repository snapshots...");
@@ -87,7 +92,7 @@ pub async fn create_repository_snapshots(
     let mut snapshots = vec![];
 
     for repository in Repository::iter() {
-        let snapshot = repository_snapshot(working_dir, repository).await?;
+        let snapshot = repository_snapshot(temp_dir, working_dir, repository).await?;
         snapshots.push(snapshot);
     }
 
@@ -96,6 +101,7 @@ pub async fn create_repository_snapshots(
 
 #[tracing::instrument(skip_all)]
 pub async fn repository_snapshot(
+    temp_dir: &TempDir,
     working_dir: &WorkingDir,
     repository: Repository,
 ) -> eyre::Result<RepositorySnapshot> {
@@ -106,13 +112,104 @@ pub async fn repository_snapshot(
         .with_working_dir(&repository_dir, async |_| git::git_info().await)
         .await?;
 
+    let files = repository_files(temp_dir, repository).await?;
     let snapshot = RepositorySnapshot {
         repository,
         branch: git_info.branch,
         origin: git_info.origin,
+        files,
     };
 
     Ok(snapshot)
+}
+
+pub async fn repository_files(
+    temp_dir: &TempDir,
+    repository: Repository,
+) -> eyre::Result<Vec<RepositoryFile>> {
+    let repository_dir = repository.dir()?;
+    let repository_dir_str = repository_dir
+        .to_str()
+        .ok_or_else(|| eyre!("Failed to convert repository directory to string"))?;
+
+    let mut files = Vec::new();
+
+    let pattern = glob(&format!("{repository_dir_str}/**/.env"))
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to create glob pattern")?;
+
+    for entry in pattern {
+        let file_path = entry
+            .map_err(|e| eyre!(e))
+            .wrap_err("Failed to get file path")?;
+
+        tracing::debug!("Processing repository file file: {}", file_path.display());
+
+        let Some(file_name) = file_path.file_name() else {
+            tracing::debug!("Skipping non-file in repository files");
+            continue;
+        };
+
+        let file_name = file_name
+            .to_str()
+            .ok_or_else(|| eyre!("Failed to convert file name to string"))?;
+
+        let file_path_relative = file_path
+            .strip_prefix(&repository_dir)
+            .map_err(|e| eyre!(e))
+            .wrap_err("Failed to strip repository directory from file path")?;
+
+        let metadata = file_path
+            .metadata()
+            .map_err(|e| eyre!(e))
+            .wrap_err("Failed to get file metadata")?;
+
+        let file = File::open(&file_path)
+            .map_err(|e| eyre!(e))
+            .wrap_err("Failed to open dump file")?;
+
+        let mut file_reader = BufReader::new(file);
+        let hash = hash_as_hex(&mut file_reader)?;
+        file_reader.rewind()?;
+
+        let pack_path_relative = get_pack_repository_file_path(repository, file_path_relative)?;
+        let pack_path = temp_dir.path().join(&pack_path_relative);
+
+        if let Some(parent) = pack_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| eyre!(e))
+                .wrap_err("Failed to create parent directory for pack file")?;
+        }
+
+        let pack_file = File::create(&pack_path)
+            .map_err(|e| eyre!(e))
+            .wrap_err("Failed to create pack file")?;
+
+        let mut pack_writer = BufWriter::new(pack_file);
+        std::io::copy(&mut file_reader, &mut pack_writer)?;
+
+        tracing::info!(
+            "Packed file from {} to {}",
+            file_path.display(),
+            pack_path.display()
+        );
+
+        let snapshot_file = SnapshotFile {
+            name: file_name.to_string(),
+            path: pack_path_relative,
+            size: metadata.len(),
+            hash,
+        };
+
+        let repository_file = RepositoryFile {
+            file: snapshot_file,
+            restore_path: file_path_relative.to_path_buf(),
+        };
+
+        files.push(repository_file);
+    }
+
+    Ok(files)
 }
 
 pub async fn store_database_dumps(
