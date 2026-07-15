@@ -10,6 +10,7 @@ use crate::{
 pub struct ProjectHealth {
     pub exists: bool,
     pub git_branch: Option<String>,
+    pub git_origin: Option<String>,
     pub env: Option<ProjectEnv>,
 }
 
@@ -25,11 +26,17 @@ pub async fn check_project_health(project: Project, dir: &Path) -> eyre::Result<
     }
 
     let git_branch = git::current_branch().await.ok();
-
     if let Some(ref git_branch) = git_branch {
         println!("  - Git branch: {}", git_branch);
     } else {
         println!("  - Git branch: Not set");
+    }
+
+    let git_origin = git::current_origin().await.ok();
+    if let Some(ref git_origin) = git_origin {
+        println!("  - Git origin: {}", git_origin);
+    } else {
+        println!("  - Git origin: Not set");
     }
 
     let env = read_project_env(&project).await.ok().flatten();
@@ -45,6 +52,7 @@ pub async fn check_project_health(project: Project, dir: &Path) -> eyre::Result<
     Ok(ProjectHealth {
         exists,
         git_branch,
+        git_origin,
         env,
     })
 }

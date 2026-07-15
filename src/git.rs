@@ -18,3 +18,22 @@ pub async fn current_branch() -> eyre::Result<String> {
 
     Ok(branch)
 }
+
+pub async fn current_origin() -> eyre::Result<String> {
+    let output = Command::new("git")
+        .arg("remote")
+        .arg("get-url")
+        .arg("origin")
+        .output()
+        .await
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to get origin URL")?;
+
+    let origin = String::from_utf8(output.stdout)
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to parse origin URL")?
+        .trim()
+        .to_owned();
+
+    Ok(origin)
+}
