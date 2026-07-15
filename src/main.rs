@@ -1,5 +1,6 @@
 mod cli;
 mod compress;
+mod db;
 mod docker;
 mod doctor;
 mod env;
@@ -9,7 +10,11 @@ mod infra;
 mod kebab;
 mod project;
 
-use std::{fs::File, io::BufWriter, path::PathBuf};
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter},
+    path::PathBuf,
+};
 
 use clap::Parser;
 use cli::{Cli, Commands, GlobalCommands};
@@ -20,7 +25,6 @@ use git::current_branch;
 use infra::set_current_infra;
 use kebab::kebabify;
 use project::{dir_name_to_project, set_current_project, Project, ProjectCommands};
-use strum::IntoEnumIterator;
 use tracing::level_filters::LevelFilter;
 
 #[tokio::main]
@@ -45,7 +49,6 @@ pub async fn main() -> eyre::Result<()> {
             println!("{}", health);
         }
         Commands::Dump { key } => {
-            let infra_env = infra::get_infra_env().await?;
             set_current_infra()?;
 
             let dump_dir = get_hbt_root()?.join("dumps").join(key.as_ref());
@@ -76,12 +79,11 @@ pub async fn main() -> eyre::Result<()> {
                 .map_err(|e| eyre!(e))
                 .wrap_err("Failed to create dump directory")?;
 
-            for project in Project::iter() {
-                if let Err(e) = project::dump_project_db(&project, &infra_env, &dump_dir)
-                    .await
-                    .wrap_err("Failed to dump project")
-                {
-                    tracing::error!("{:?}", e);
+            let configured_dbs = db::get_configured_dbs().await?;
+
+            for project_db in configured_dbs {
+                if let Err(e) = db::dump_project(&project_db, &dump_dir).await {
+                    tracing::error!("{}", e);
                 }
             }
 
@@ -100,6 +102,76 @@ pub async fn main() -> eyre::Result<()> {
             compress::zip_dir(dump_zip_file, &dump_dir).await?;
 
             tracing::info!("Zipped dumps to {}", dump_zip_path.display());
+        }
+        Commands::Restore { key } => {
+            let dump_zip_path = get_hbt_root()?
+                .join("dumps")
+                .join(format!("{}.zip", key.as_ref()));
+
+            let dump_unzip_dir = get_hbt_root()?.join("dumps").join(key.as_ref());
+
+            if dump_zip_path.exists() {
+                let dump_zip_file = File::open(&dump_zip_path)
+                    .map_err(|e| eyre!(e))
+                    .wrap_err("Failed to open zip file")?;
+
+                let dump_zip_file = BufReader::new(dump_zip_file);
+
+                compress::unzip_dir(dump_zip_file, &dump_unzip_dir).await?;
+
+                tracing::info!("Unzipped dumps to {}", dump_unzip_dir.display());
+            } else if dump_unzip_dir.exists() {
+                tracing::info!("No dump zip file found at {}", dump_zip_path.display());
+            }
+
+            if !dump_unzip_dir.exists() {
+                tracing::info!("No dumps found to restore");
+                return Ok(());
+            }
+
+            if !dump_unzip_dir.is_dir() {
+                eyre::bail!("Dump directory found but is not a directory");
+            }
+
+            let configured_dbs = db::get_configured_dbs().await?;
+
+            for project_db in configured_dbs {
+                tracing::info!("Restoring dump for {}", project_db.project.name());
+
+                let dump_file = dump_unzip_dir.join(format!("{}.sql.gz", project_db.db_database));
+
+                if !dump_file.exists() {
+                    tracing::debug!(
+                        "No dump file found for {} ({})",
+                        project_db.project.name(),
+                        project_db.db_database,
+                    );
+                    continue;
+                }
+
+                if !dump_file.is_file() {
+                    tracing::warn!("Skipping non-file dump for {}", project_db.project.name());
+                    continue;
+                }
+
+                if !cli.non_interactive {
+                    let confirm = Confirm::with_theme(&ColorfulTheme::default())
+                        .with_prompt(format!(
+                            "Restore dump for {} to {}?",
+                            project_db.project.name(),
+                            project_db.db_database
+                        ))
+                        .interact()
+                        .map_err(|e| eyre!(e))
+                        .wrap_err("Failed to prompt for confirmation")?;
+
+                    if !confirm {
+                        continue;
+                    }
+                }
+
+                db::restore(&project_db, &dump_file).await?;
+            }
         }
         Commands::Global { command } => match command {
             GlobalCommands::Up { rest } => {

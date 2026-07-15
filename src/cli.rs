@@ -33,8 +33,10 @@ pub struct Cli {
 pub enum Commands {
     /// Check your configuration for potential issues
     Doctor,
-    /// Dump the mysql databases
+    /// Dump mysql databases
     Dump { key: Kebab },
+    /// Restore mysql databases
+    Restore { key: Kebab },
     /// Run a command for all projects
     Global {
         #[command(subcommand)]
