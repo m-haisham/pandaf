@@ -1,0 +1,30 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { createServer, type ViteDevServer } from "vite";
+import vue from "@vitejs/plugin-vue";
+import { renderDev } from "../src/server/render.dev";
+
+describe("renderDev (Vite ssrLoadModule, no build step)", () => {
+  let vite: ViteDevServer;
+
+  beforeAll(async () => {
+    vite = await createServer({
+      configFile: false,
+      plugins: [vue()],
+      server: { middlewareMode: true, hmr: false },
+      appType: "custom",
+    });
+  });
+
+  afterAll(async () => {
+    await vite.close();
+  });
+
+  it("SSR-renders the Invoice template with provided data", async () => {
+    const html = await renderDev(vite, "Invoice", {
+      id: "INV-0001",
+      customerName: "Acme Corporation",
+    });
+    expect(html).toContain("INV-0001");
+    expect(html).toContain("Acme Corporation");
+  });
+});

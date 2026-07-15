@@ -4,7 +4,7 @@
   "description": "Enterprise PDF Generation Microservice (Vue SSR + Gotenberg)",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/dev-server.ts",
+    "dev": "tsx watch --ignore \"**/*.timestamp-*.mjs\" src/dev-server.ts",
     "build": "vite build --ssr src/entry-server.ts --outDir dist && vite build --outDir dist/client",
     "start": "node dist-server/index.js",
     "test": "vitest run",
@@ -14,6 +14,11 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.14.0",
+  "pnpm": {
+    "overrides": {
+      "@sinclair/typebox": ">=0.34.0 <1"
+    }
+  },
   "dependencies": {
     "@elysiajs/node": "^1.0.0",
     "elysia": "^1.0.0",
