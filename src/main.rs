@@ -78,6 +78,10 @@ async fn project_command(app: String, command: ProjectCommands) -> eyre::Result<
         ProjectCommands::Down { rest } => {
             docker::compose_down(&rest).await?;
         }
+        ProjectCommands::Restart { rest } => {
+            docker::compose_down(&rest).await?;
+            docker::compose_up(&rest).await?;
+        }
         ProjectCommands::Artisan { rest } => {
             let mut args = vec!["php-fpm", "php", "artisan"];
             args.extend(rest.iter().map(|s| s.as_str()));

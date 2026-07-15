@@ -81,5 +81,6 @@ pub fn dir_name_to_project<'a>(name: &str) -> Option<&'static str> {
 pub enum ProjectCommands {
     Up { rest: Vec<String> },
     Down { rest: Vec<String> },
+    Restart { rest: Vec<String> },
     Artisan { rest: Vec<String> },
 }
