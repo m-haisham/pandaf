@@ -8,13 +8,13 @@ use eyre::{eyre, Context};
 
 use crate::{
     compress,
-    context::AppContext,
-    db,
+    context::{AppContext, WorkingDir},
+    db, git,
     project::{read_project_env, ProjectEnv},
 };
 
 use super::{
-    types::{MysqlDump, SnapshotManifest},
+    types::{MysqlDump, RepositorySnapshot, SnapshotManifest},
     utils::hash_as_hex,
     MANIFEST_FILE,
 };
@@ -34,6 +34,10 @@ pub async fn restore_snapshot(context: AppContext, zip_path: &Path) -> eyre::Res
 
     let manifest = read_manifest_from_snapshot(unzipped_dir.path())?;
 
+    for repository in manifest.repositories {
+        restore_repository(&context.working_dir, &repository).await?;
+    }
+
     for dump in manifest.mysql_dumps {
         restore_mysql_dump(unzipped_dir.path(), &dump).await?;
     }
@@ -52,6 +56,21 @@ fn read_manifest_from_snapshot(snapshot_dir: &Path) -> eyre::Result<SnapshotMani
         .wrap_err("Failed to parse manifest JSON")?;
 
     Ok(manifest)
+}
+
+async fn restore_repository(
+    working_dir: &WorkingDir,
+    snapshot: &RepositorySnapshot,
+) -> eyre::Result<()> {
+    let repository_dir = snapshot.repository.dir()?;
+    working_dir
+        .with_working_dir(&repository_dir, async |_| {
+            git::set_origin(&snapshot.origin).await?;
+            git::checkout(&snapshot.branch).await?;
+            Ok(())
+        })
+        .await?;
+    Ok(())
 }
 
 #[tracing::instrument(

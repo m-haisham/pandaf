@@ -34,6 +34,6 @@ pub struct SnapshotFile {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RepositorySnapshot {
     pub repository: Repository,
-    pub branch: String,
     pub origin: String,
+    pub branch: String,
 }

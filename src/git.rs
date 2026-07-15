@@ -224,6 +224,20 @@ pub async fn current_origin() -> eyre::Result<String> {
     Ok(origin)
 }
 
+pub async fn set_origin(url: &str) -> eyre::Result<()> {
+    Command::new("git")
+        .arg("remote")
+        .arg("set-url")
+        .arg("origin")
+        .arg(url)
+        .output()
+        .await
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to set origin URL")?;
+
+    Ok(())
+}
+
 pub async fn git_clone(url: &str, dir: &Path) -> eyre::Result<()> {
     Command::new("git")
         .arg("clone")
