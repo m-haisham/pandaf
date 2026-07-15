@@ -106,37 +106,37 @@ pub async fn main() -> eyre::Result<()> {
             }
         },
         Commands::Traefik { command } => {
-            // project_command(Project::Traefik, command).await?;
+            // project_command(context, Project::Traefik, command).await?;
         }
         Commands::Infra { command } => {
-            // project_command(Project::Infra, command).await?;
+            // project_command(context, Project::Infra, command).await?;
         }
         Commands::Gateway { command } => {
-            project_command(Project::Gateway, command).await?;
+            project_command(context, Project::Gateway, command).await?;
         }
         Commands::Rates { command } => {
-            project_command(Project::Rates, command).await?;
+            project_command(context, Project::Rates, command).await?;
         }
         Commands::Search { command } => {
-            project_command(Project::Search, command).await?;
+            project_command(context, Project::Search, command).await?;
         }
         Commands::Operations { command } => {
-            project_command(Project::Operations, command).await?;
+            project_command(context, Project::Operations, command).await?;
         }
         Commands::Foundation { command } => {
-            project_command(Project::Foundation, command).await?;
+            project_command(context, Project::Foundation, command).await?;
         }
         Commands::Products { command } => {
-            project_command(Project::Products, command).await?;
+            project_command(context, Project::Products, command).await?;
         }
         Commands::Api { command } => {
-            project_command(Project::ApiGateway, command).await?;
+            project_command(context, Project::ApiGateway, command).await?;
         }
         Commands::App { command } => {
-            project_command(Project::App, command).await?;
+            project_command(context, Project::App, command).await?;
         }
         Commands::Nest { command } => {
-            project_command(Project::Nest, command).await?;
+            project_command(context, Project::Nest, command).await?;
         }
         Commands::Fallthrough(args) => {
             let app = args
@@ -146,14 +146,14 @@ pub async fn main() -> eyre::Result<()> {
 
             if let Some(project) = dir_name_to_project(&app) {
                 let command = ProjectCommands::parse_from(args.into_iter());
-                project_command(project, command).await?;
+                project_command(context, project, command).await?;
             } else if let Some(app) = project::detect_project()? {
                 let mut project_args = vec![app.name().to_string()];
                 project_args.extend(args.into_iter());
 
                 let command = ProjectCommands::parse_from(project_args.into_iter());
 
-                project_command(app, command).await?;
+                project_command(context, app, command).await?;
             } else {
                 eyre::bail!("No project detected and no project provided");
             }
@@ -163,7 +163,11 @@ pub async fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-async fn project_command(project: Project, command: ProjectCommands) -> eyre::Result<()> {
+async fn project_command(
+    context: AppContext,
+    project: Project,
+    command: ProjectCommands,
+) -> eyre::Result<()> {
     set_current_project(&project).await?;
 
     match command {
