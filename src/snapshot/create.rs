@@ -7,13 +7,15 @@ use std::{
 
 use chrono::Utc;
 use eyre::{eyre, Context};
+use strum::IntoEnumIterator;
 use tempfile::TempDir;
 
-use super::types::{MysqlDump, SnapshotManifest};
+use super::types::{MysqlDump, RepositorySnapshot, SnapshotManifest};
 use crate::{
     compress,
-    context::AppContext,
+    context::{AppContext, WorkingDir},
     db,
+    git::{self, Repository},
     snapshot::{types::SnapshotFile, utils::hash_as_hex, MANIFEST_FILE, MYSQL_DUMPS_DIR},
 };
 
@@ -39,12 +41,15 @@ pub async fn create_snapshot(context: AppContext) -> eyre::Result<()> {
         tempdir_name
     );
 
+    let repositories = create_repository_snapshots(&context.working_dir).await?;
+
     let mysql_dumps = store_database_dumps(&tempdir)
         .await
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to store database dumps")?;
 
     let manifest = SnapshotManifest {
+        repositories,
         mysql_dumps,
         created_at: Utc::now(),
     };
@@ -69,6 +74,36 @@ pub async fn create_snapshot(context: AppContext) -> eyre::Result<()> {
         .wrap_err("Failed to copy snapshot")?;
 
     Ok(())
+}
+
+pub async fn create_repository_snapshots(
+    working_dir: &WorkingDir,
+) -> eyre::Result<Vec<RepositorySnapshot>> {
+    let mut snapshots = vec![];
+
+    for repository in Repository::iter() {
+        let snapshot = repository_snapshot(working_dir, repository).await?;
+        snapshots.push(snapshot);
+    }
+
+    Ok(snapshots)
+}
+
+pub async fn repository_snapshot(
+    working_dir: &WorkingDir,
+    repository: Repository,
+) -> eyre::Result<RepositorySnapshot> {
+    let repository_dir = repository.dir()?;
+    let git_info = working_dir
+        .with_working_dir(&repository_dir, async |_| git::git_info().await)
+        .await?;
+
+    let snapshot = RepositorySnapshot {
+        branch: git_info.branch,
+        origin: git_info.origin,
+    };
+
+    Ok(snapshot)
 }
 
 pub async fn store_database_dumps(temp_dir: &TempDir) -> eyre::Result<Vec<MysqlDump>> {

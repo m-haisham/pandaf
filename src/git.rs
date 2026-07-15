@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
     fmt::{self, Display},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use eyre::{eyre, Context};
@@ -67,6 +67,12 @@ impl Repository {
             Repository::SoPackageSerializer => "so-package-serializer",
             Repository::ApiClients => "api-clients",
         }
+    }
+
+    pub fn dir(&self) -> eyre::Result<PathBuf> {
+        let hbt_root = env::get_hbt_root()?;
+        let repository_dir = hbt_root.join(self.dir_name());
+        Ok(repository_dir)
     }
 }
 
@@ -352,8 +358,7 @@ impl GitRepoList {
         let mut map = BTreeMap::new();
 
         for repository in Repository::iter() {
-            let hbt_root = env::get_hbt_root()?;
-            let repository_dir = hbt_root.join(repository.dir_name());
+            let repository_dir = repository.dir()?;
 
             let git_info = working_dir
                 .with_working_dir(&repository_dir, async |_| git_info().await)

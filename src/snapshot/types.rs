@@ -7,6 +7,7 @@ use crate::project::Project;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SnapshotManifest {
+    pub repositories: Vec<RepositorySnapshot>,
     pub mysql_dumps: Vec<MysqlDump>,
     pub created_at: DateTime<Utc>,
 }
@@ -23,4 +24,10 @@ pub struct SnapshotFile {
     pub path: PathBuf,
     pub size: u64,
     pub hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RepositorySnapshot {
+    pub branch: String,
+    pub origin: String,
 }
