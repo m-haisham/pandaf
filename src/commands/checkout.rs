@@ -41,16 +41,11 @@ pub async fn checkout(
     ))?;
 
     for project in Project::iter() {
-        if !project.has_docker() {
-            continue;
-        }
-
-        let Some(dir_name) = project.dir_name() else {
+        let Some(container) = project.container() else {
             continue;
         };
 
-        let hbt_root = env::get_hbt_root()?;
-        let project_dir = hbt_root.join(dir_name);
+        let project_dir = project.dir()?;
 
         set_current_dir(project_dir)
             .map_err(|e| eyre!(e))

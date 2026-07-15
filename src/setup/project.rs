@@ -6,14 +6,14 @@ use itertools::Itertools;
 use strum::IntoEnumIterator;
 
 use crate::{
-    git,
-    project::{get_project_dir, Project},
+    env::get_hbt_root,
+    git::{self, Repository},
 };
 
 pub async fn setup_projects(non_interactive: bool) -> eyre::Result<()> {
     let projects = if non_interactive {
         tracing::info!("Non-interactive mode enabled, skipping project selection");
-        Project::iter().collect_vec()
+        Repository::iter().collect_vec()
     } else {
         prompt_projects()?
     };
@@ -25,12 +25,11 @@ pub async fn setup_projects(non_interactive: bool) -> eyre::Result<()> {
     Ok(())
 }
 
-fn prompt_projects() -> eyre::Result<Vec<Project>> {
-    let never_projects = [Project::Traefik, Project::Infra];
-    let required_projects = [Project::DevEnvironment];
+fn prompt_projects() -> eyre::Result<Vec<Repository>> {
+    let required_projects = [Repository::DevEnvironment];
 
-    let projects = Project::iter()
-        .filter(|p| !required_projects.contains(p) && !never_projects.contains(p))
+    let projects = Repository::iter()
+        .filter(|p| !required_projects.contains(p))
         .collect::<Vec<_>>();
 
     let selected_indexes = MultiSelect::new()
@@ -53,36 +52,31 @@ fn prompt_projects() -> eyre::Result<Vec<Project>> {
 }
 
 #[tracing::instrument]
-pub async fn setup_project(project: &Project) -> eyre::Result<()> {
-    tracing::info!("Setting up project: {}", project);
+pub async fn setup_project(repo: &Repository) -> eyre::Result<()> {
+    tracing::info!("Setting up repository: {}", repo);
 
-    let Some(project_dir) = get_project_dir(project)? else {
-        return Err(eyre!("Project directory not found"));
-    };
+    let hbt_root = get_hbt_root()?;
+    let dir = hbt_root.join(repo.dir_name());
 
-    if project_dir.exists() && project_dir.is_file() {
+    if dir.exists() && dir.is_file() {
         return Err(eyre!("Project directory is a file"));
     }
 
-    if !project_dir.exists() {
-        std::fs::create_dir_all(&project_dir)
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir)
             .map_err(|e| eyre!(e))
             .wrap_err("Failed to create project directory")?;
 
-        let Some(git_url) = project.git_url() else {
-            return Err(eyre!("Project does not have a git origin"));
-        };
-
-        git::git_clone(git_url, &project_dir)
+        git::git_clone(repo.url(), &dir)
             .await
             .wrap_err("Failed to clone project repository")?;
 
-        tracing::info!("Cloned project repository to {}", project_dir.display());
+        tracing::info!("Cloned project repository to {}", dir.display());
     } else {
         tracing::info!("Project directory already exists, skipping cloning");
     }
 
-    setup_project_env(&project_dir)
+    setup_project_env(&dir)
         .await
         .wrap_err("Failed to setup project environment")?;
 

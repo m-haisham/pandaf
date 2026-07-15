@@ -21,14 +21,6 @@ pub async fn get_configured_dbs() -> eyre::Result<Vec<ProjectDb>> {
     let mut project_dbs = vec![];
 
     for project in Project::iter() {
-        if project.dir_name().is_none() {
-            tracing::debug!(
-                "Skipping {} because it has no defined directory",
-                project.name()
-            );
-            continue;
-        }
-
         let project_env = read_project_env::<ProjectEnv>(&project).await?;
         let Some(project_env) = project_env else {
             tracing::warn!("No environment found for {}", project.name());

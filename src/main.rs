@@ -28,6 +28,7 @@ use cli::{Cli, Commands, GlobalCommands, ProjectCommands};
 use commands::{get_config, print_config, set_config};
 use context::AppContext;
 use dialoguer::{theme::ColorfulTheme, Confirm};
+use docker::Container;
 use env::get_hbt_root;
 use eyre::{eyre, Context};
 use git::current_branch;
@@ -105,10 +106,10 @@ pub async fn main() -> eyre::Result<()> {
             }
         },
         Commands::Traefik { command } => {
-            project_command(Project::Traefik, command).await?;
+            // project_command(Project::Traefik, command).await?;
         }
         Commands::Infra { command } => {
-            project_command(Project::Infra, command).await?;
+            // project_command(Project::Infra, command).await?;
         }
         Commands::Gateway { command } => {
             project_command(Project::Gateway, command).await?;

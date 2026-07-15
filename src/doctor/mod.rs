@@ -37,11 +37,7 @@ pub async fn check_health(context: AppContext) -> eyre::Result<Health> {
     println!("Projects:");
     if let Ok(hbt_root) = get_hbt_root() {
         for project in Project::iter() {
-            let Some(dir_name) = project.dir_name() else {
-                continue;
-            };
-
-            let dir = hbt_root.join(dir_name);
+            let dir = hbt_root.join(project.dir_name());
             if let Err(e) = std::env::set_current_dir(&dir) {
                 println!("  {} - {e}", project.name());
                 continue;

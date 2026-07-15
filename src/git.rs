@@ -1,9 +1,13 @@
-use std::path::Path;
+use std::{
+    fmt::{self, Display},
+    path::Path,
+};
 
 use eyre::{eyre, Context};
+use strum::EnumIter;
 use tokio::process::Command;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, EnumIter)]
 pub enum Repository {
     Gateway,
     Rates,
@@ -39,6 +43,46 @@ impl Repository {
             }
             Repository::ApiClient => "git@bitbucket.org:humtravel/api-client.git",
         }
+    }
+
+    pub fn dir_name(&self) -> &str {
+        match self {
+            Repository::Gateway => "gateway-app",
+            Repository::Rates => "rates",
+            Repository::Search => "search",
+            Repository::Operations => "operations",
+            Repository::Foundation => "foundation",
+            Repository::Products => "products",
+            Repository::ApiGateway => "apigateway",
+            Repository::DevEnvironment => "hbt-docker-dev-environment",
+            Repository::App => "hummingbird-app",
+            Repository::Nest => "nest-app",
+            Repository::SoPackageSerializer => "so-package-serializer",
+            Repository::ApiClient => "api-client",
+        }
+    }
+}
+
+impl Display for Repository {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Repository::Gateway => "gateway",
+                Repository::Rates => "rates",
+                Repository::Search => "search",
+                Repository::Operations => "operations",
+                Repository::Foundation => "foundation",
+                Repository::Products => "products",
+                Repository::ApiGateway => "apigateway",
+                Repository::DevEnvironment => "dev-environment",
+                Repository::App => "app",
+                Repository::Nest => "nest",
+                Repository::SoPackageSerializer => "so-package-serializer",
+                Repository::ApiClient => "api-client",
+            }
+        )
     }
 }
 

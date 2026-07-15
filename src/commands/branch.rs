@@ -14,16 +14,11 @@ pub async fn print_branches(mut context: AppContext) -> eyre::Result<()> {
     let current_branch = git::current_branch().await.ok();
 
     for project in Project::iter() {
-        if !project.has_docker() {
-            continue;
-        }
-
-        let Some(dir_name) = project.dir_name() else {
+        let Some(container) = project.container() else {
             continue;
         };
 
-        let hbt_root = env::get_hbt_root()?;
-        let project_dir = hbt_root.join(dir_name);
+        let project_dir = project.dir()?;
 
         context
             .working_dir
