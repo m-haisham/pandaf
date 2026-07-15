@@ -6,7 +6,9 @@ use crate::{
 };
 
 pub async fn start_all_projects(args: &[String]) -> eyre::Result<()> {
-    for project in Project::iter() {
+    let docker_projects = Project::iter().filter(|p| p.has_docker());
+
+    for project in docker_projects {
         set_current_project(&project).await?;
         docker::compose_up(args).await?;
     }
@@ -15,7 +17,9 @@ pub async fn start_all_projects(args: &[String]) -> eyre::Result<()> {
 }
 
 pub async fn stop_all_projects(args: &[String]) -> eyre::Result<()> {
-    for project in Project::iter() {
+    let docker_projects = Project::iter().filter(|p| p.has_docker());
+
+    for project in docker_projects {
         set_current_project(&project).await?;
         docker::compose_down(args).await?;
     }

@@ -74,6 +74,23 @@ impl Project {
             Project::Nest => Some("git@bitbucket.org:humtravel/nest-app.git"),
         }
     }
+
+    pub fn has_docker(&self) -> bool {
+        match self {
+            Project::Traefik => true,
+            Project::Infra => true,
+            Project::Gateway => true,
+            Project::Rates => true,
+            Project::Search => true,
+            Project::Operations => true,
+            Project::Foundation => true,
+            Project::Products => true,
+            Project::ApiGateway => true,
+            Project::DevEnvironment => false,
+            Project::App => true,
+            Project::Nest => true,
+        }
+    }
 }
 
 impl Display for Project {
