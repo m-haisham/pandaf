@@ -2,10 +2,7 @@ use console::Term;
 use directories::ProjectDirs;
 use eyre::{eyre, Context};
 
-use crate::{
-    config::{read_config, Config},
-    storage::Storage,
-};
+use crate::config::{read_config, Config};
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -16,30 +13,32 @@ pub struct AppContext {
     pub config: Config,
     pub working_dir: WorkingDir,
     pub term: Term,
-    pub storage: Storage,
 }
 
 impl AppContext {
     pub fn new(verbose: u8, non_interactive: bool) -> eyre::Result<Self> {
+        let name = env!("CARGO_PKG_NAME").to_string();
         let config = read_config()?;
         let working_dir = WorkingDir::new()?;
         let term = Term::stdout();
-        let storage = Storage::local()?;
         Ok(Self {
-            name: env!("CARGO_PKG_NAME").to_string(),
+            name,
             verbose,
             non_interactive,
             config,
             working_dir,
             term,
-            storage,
         })
     }
 
     pub fn dirs(&self) -> eyre::Result<ProjectDirs> {
-        directories::ProjectDirs::from("travel", "hummingbird", &self.name)
-            .ok_or_else(|| eyre!("Failed to retreive application directory"))
+        project_dirs(&self.name)
     }
+}
+
+fn project_dirs(name: &str) -> eyre::Result<ProjectDirs> {
+    directories::ProjectDirs::from("travel", "hummingbird", name)
+        .ok_or_else(|| eyre!("Failed to retreive application directory"))
 }
 
 /// Represents the current working directory

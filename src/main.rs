@@ -13,7 +13,6 @@ mod kebab;
 mod project;
 mod setup;
 mod snapshot;
-mod storage;
 mod ui;
 mod update;
 mod utils;
