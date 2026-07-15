@@ -1,6 +1,9 @@
 use console::Term;
 
-use crate::config::{read_config, Config};
+use crate::{
+    config::{read_config, Config},
+    storage::Storage,
+};
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -10,6 +13,7 @@ pub struct AppContext {
     pub config: Config,
     pub working_dir: WorkingDir,
     pub term: Term,
+    pub storage: Storage,
 }
 
 impl AppContext {
@@ -17,12 +21,14 @@ impl AppContext {
         let config = read_config()?;
         let working_dir = WorkingDir::new()?;
         let term = Term::stdout();
+        let storage = Storage::local()?;
         Ok(Self {
             verbose,
             non_interactive,
             config,
             working_dir,
             term,
+            storage,
         })
     }
 
