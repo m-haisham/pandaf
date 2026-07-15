@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use dialoguer::MultiSelect;
 use eyre::{eyre, WrapErr};
 use itertools::Itertools;
@@ -80,5 +82,30 @@ pub async fn setup_project(project: &Project) -> eyre::Result<()> {
         tracing::info!("Project directory already exists, skipping cloning");
     }
 
+    let env_file = setup_project_env(project, &project_dir)
+        .await
+        .wrap_err("Failed to setup project environment")?;
+
     Ok(())
+}
+
+async fn setup_project_env(project: &Project, project_dir: &Path) -> eyre::Result<PathBuf> {
+    let env_file = project_dir.join(".env");
+
+    if env_file.exists() {
+        tracing::info!("Environment file already exists, skipping setup");
+    } else {
+        tracing::info!("Creating environment file");
+
+        let env_example_file = project_dir.join(".env.example");
+        if !env_example_file.exists() {
+            return Err(eyre!("Environment example file not found"));
+        }
+
+        std::fs::copy(&env_example_file, &env_file)
+            .map_err(|e| eyre!(e))
+            .wrap_err("Failed to copy environment example file")?;
+    }
+
+    Ok(env_file)
 }
