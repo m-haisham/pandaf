@@ -160,15 +160,33 @@ async fn project_command(app: String, command: ProjectCommands) -> eyre::Result<
                     .wrap_err("Failed to create dump directory")?;
             }
 
-            tracing::info!("Dumping database for {}", app);
             let dump = docker::mysql_dump(&app, &infra_env.mysql_db_password).await?;
+            tracing::info!("Dumped {} bytes", dump.len());
 
-            tracing::info!("Compressing writing to file: {}", dump_file.display());
             let dump = gzip::gzip(&dump).await?;
+            tracing::info!("Compressed dump to {} bytes", dump.len());
 
-            std::fs::write(dump_file, dump)
+            std::fs::write(&dump_file, dump)
                 .map_err(|e| eyre!(e))
                 .wrap_err("Failed to write dump to file")?;
+
+            tracing::info!("Wrote dump to file {}", dump_file.display());
+        }
+        ProjectCommands::Restore { path } => {
+            let infra_env = infra::get_infra_env().await?;
+            set_current_infra()?;
+
+            let dump = std::fs::read(path)
+                .map_err(|e| eyre!(e))
+                .wrap_err("Failed to read dump file")?;
+
+            tracing::info!("Read dump from file {} bytes", dump.len());
+
+            let dump = gzip::gunzip(&dump).await?;
+            tracing::info!("Decompressed dump to {} bytes", dump.len());
+
+            docker::mysql_restore(&app, &infra_env.mysql_db_password, dump.as_bytes()).await?;
+            tracing::info!("Restored dump to {}", app);
         }
     }
 

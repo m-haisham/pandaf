@@ -1,4 +1,6 @@
 use eyre::{eyre, WrapErr};
+use std::process::Stdio;
+use tokio::io::AsyncWriteExt;
 
 pub async fn mysql_dump(database: &str, password: &str) -> eyre::Result<String> {
     let password = format!("-p{}", password);
@@ -18,6 +20,34 @@ pub async fn mysql_dump(database: &str, password: &str) -> eyre::Result<String> 
             .unwrap_or_else(|e| format!("Failed to convert stderr to string: {:?}", e));
 
         Err(eyre!("Failed to run mysqldump: {}", stderr))
+    }
+}
+
+pub async fn mysql_restore(database: &str, password: &str, dump: &[u8]) -> eyre::Result<()> {
+    let password = format!("-p{}", password);
+
+    let mut cmd = tokio::process::Command::new("docker-compose");
+    cmd.args(&["exec", "-T", "hbt-service-mysql", "mysql"]);
+    cmd.args(&["-u", "root"]);
+    cmd.args(&[&password]);
+    cmd.args(&[database]);
+    cmd.stdin(Stdio::piped());
+
+    let mut child = cmd.spawn().wrap_err("Failed to spawn mysql")?;
+
+    let child_stdin = child
+        .stdin
+        .as_mut()
+        .ok_or_else(|| eyre!("Failed to open stdin"))?;
+
+    child_stdin.write_all(&dump).await?;
+
+    let status = child.wait().await?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(eyre!("Failed to run mysql: {}", status))
     }
 }
 

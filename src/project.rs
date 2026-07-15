@@ -1,6 +1,9 @@
 use clap::Parser;
 use eyre::{eyre, WrapErr};
-use std::{env::set_current_dir, path::Path};
+use std::{
+    env::set_current_dir,
+    path::{Path, PathBuf},
+};
 
 use crate::kebab::Kebab;
 
@@ -109,5 +112,10 @@ pub enum ProjectCommands {
     Dump {
         /// A unique key to identify the dump
         key: Option<Kebab>,
+    },
+    /// Restore from a dump
+    Restore {
+        /// The path to the dump file
+        path: PathBuf,
     },
 }
