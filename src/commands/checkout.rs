@@ -88,7 +88,7 @@ pub async fn checkout(
             migrate_output
         );
 
-        draw.draw_labeled(&line_style.apply_to(project.name()).to_string(), &value)?;
+        draw.draw_labeled_styled(project.name(), &value, line_style)?;
     }
 
     Ok(())

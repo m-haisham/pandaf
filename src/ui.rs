@@ -67,4 +67,30 @@ impl DrawContext<'_> {
 
         Ok(())
     }
+
+    pub fn draw_labeled_styled(
+        &self,
+        label: &str,
+        value: &str,
+        style: console::Style,
+    ) -> eyre::Result<()> {
+        let indent = "  ".repeat(self.indent_level);
+
+        const LABEL_WIDTH: usize = 20;
+
+        let available_width = LABEL_WIDTH.saturating_sub(indent.len() + 1);
+
+        let label = if label.len() > available_width {
+            format!("{}…:", &label[..available_width.saturating_sub(1)])
+        } else {
+            format!("{label}:")
+        };
+
+        let label = format!("{indent}{label}");
+        let line = format!("{:>LABEL_WIDTH$} {value}", style.apply_to(label));
+
+        self.term.write_line(&line)?;
+
+        Ok(())
+    }
 }
