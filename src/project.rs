@@ -5,7 +5,7 @@ use strum::EnumIter;
 
 use crate::{docker::Container, env::get_hbt_root};
 
-#[derive(Debug, Hash, Clone, EnumIter, PartialEq, Eq)]
+#[derive(Debug, Hash, Copy, Clone, EnumIter, PartialEq, Eq)]
 pub enum Project {
     Gateway,
     Rates,

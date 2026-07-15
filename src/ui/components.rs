@@ -27,6 +27,15 @@ impl LabeledLine {
         }
     }
 
+    pub fn with_values(mut self, values: Vec<String>) -> Self {
+        if values.is_empty() {
+            self.value = None;
+        } else {
+            self.value = Some(values.join(", "));
+        }
+        self
+    }
+
     pub fn with_warnings(mut self, warnings: Vec<String>) -> Self {
         self.warnings = warnings;
         self
@@ -78,10 +87,12 @@ impl From<LabeledLine> for NormalizedLabaledLine {
             .unwrap_or("Not set")
             .to_string();
 
-        if !labeled_line.errors.is_empty() {
-            labeled_line.errors = labeled_line.errors.into_iter().skip(1).collect();
-        } else if !labeled_line.warnings.is_empty() {
-            labeled_line.warnings = labeled_line.warnings.into_iter().skip(1).collect();
+        if labeled_line.value.is_none() {
+            if !labeled_line.errors.is_empty() {
+                labeled_line.errors = labeled_line.errors.into_iter().skip(1).collect();
+            } else if !labeled_line.warnings.is_empty() {
+                labeled_line.warnings = labeled_line.warnings.into_iter().skip(1).collect();
+            }
         }
 
         Self {

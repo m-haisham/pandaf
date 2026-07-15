@@ -34,7 +34,8 @@ pub async fn check_health(context: AppContext) -> eyre::Result<Health> {
 
     let mut projects = Vec::new();
 
-    println!("Projects:");
+    brush.heading("Projects")?;
+
     if let Ok(hbt_root) = get_hbt_root() {
         for project in Project::iter() {
             let dir = hbt_root.join(project.dir_name());
@@ -44,7 +45,7 @@ pub async fn check_health(context: AppContext) -> eyre::Result<Health> {
             }
 
             let project_health = project::check_project_health(project, &dir).await?;
-            println!();
+            brush.draw(&project_health)?;
 
             projects.push(project_health);
         }

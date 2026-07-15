@@ -5,11 +5,13 @@ use eyre::eyre;
 use crate::{
     docker, git,
     project::{read_project_env, Project},
+    ui::{components::LabeledLine, traits::Draw},
 };
 
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct ProjectHealth {
+    pub project: Project,
     pub exists: bool,
     pub git_branch: Option<String>,
     pub git_origin: Option<String>,
@@ -27,29 +29,9 @@ pub struct ProjectDbHealth {
 }
 
 pub async fn check_project_health(project: Project, dir: &Path) -> eyre::Result<ProjectHealth> {
-    println!("  {}", project.name());
-
     let exists = dir.exists();
-
-    if exists {
-        println!("  - Path: {}", dir.display());
-    } else {
-        println!("  - Path: Not set");
-    }
-
     let git_branch = git::current_branch().await.ok();
-    if let Some(ref git_branch) = git_branch {
-        println!("  - Git branch: {}", git_branch);
-    } else {
-        println!("  - Git branch: Not set");
-    }
-
     let git_origin = git::current_origin().await.ok();
-    if let Some(ref git_origin) = git_origin {
-        println!("  - Git origin: {}", git_origin);
-    } else {
-        println!("  - Git origin: Not set");
-    }
 
     #[derive(Debug, serde::Deserialize)]
     struct ProjectEnv {
@@ -83,28 +65,58 @@ pub async fn check_project_health(project: Project, dir: &Path) -> eyre::Result<
         connect: db_connect,
     });
 
-    if let Some(db) = &db {
-        println!("  - Database:");
-        println!("    - Host: {}", printable(db.host.as_ref()));
-        println!("    - Port: {}", printable(db.port.as_ref()));
-        println!("    - Database: {}", printable(db.database.as_ref()));
-        println!("    - Username: {}", printable(db.username.as_ref()));
-        println!("    - Password: {}", printable(db.password.as_ref()));
-        if let Err(e) = &db.connect {
-            println!("    - Connect: Failed ({})", e);
-        } else {
-            println!("    - Connect: Success");
-        }
-    } else {
-        println!("  - Database: Not set");
-    }
-
     Ok(ProjectHealth {
+        project,
         exists,
         git_branch,
         git_origin,
         db,
     })
+}
+
+impl Draw for ProjectHealth {
+    fn draw_compact(&self, brush: &crate::ui::BrushContext<'_>) -> eyre::Result<()> {
+        let mut values = vec![];
+        let mut errors = vec![];
+
+        if !self.exists {
+            errors.push(format!(
+                "Project not found at expected location: {}",
+                self.project.dir()?.display()
+            ));
+        }
+
+        if let Some(git_branch) = &self.git_branch {
+            values.push(git_branch.to_string());
+        } else {
+            errors.push("Unable to determine git branch".to_owned());
+        }
+
+        if let None = &self.git_origin {
+            errors.push("Unable to determine git origin".to_owned());
+        }
+
+        if let Some(db) = &self.db {
+            if db.connect.is_ok() {
+                values.push("Database connected".to_owned());
+            } else {
+                errors.push("Unable to connect to database".to_owned());
+            }
+        } else {
+            errors.push("Unable to determine database".to_owned());
+        }
+
+        LabeledLine::labeled(self.project.name().to_string())
+            .with_values(values)
+            .with_errors(errors)
+            .draw(brush)?;
+
+        Ok(())
+    }
+
+    fn draw_verbose(&self, brush: &crate::ui::BrushContext<'_>) -> eyre::Result<()> {
+        todo!()
+    }
 }
 
 fn printable<T: ToString>(value: Option<&T>) -> String {
