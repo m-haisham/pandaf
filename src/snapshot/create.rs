@@ -107,6 +107,7 @@ pub async fn repository_snapshot(
         .await?;
 
     let snapshot = RepositorySnapshot {
+        repository,
         branch: git_info.branch,
         origin: git_info.origin,
     };

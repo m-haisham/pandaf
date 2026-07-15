@@ -6,6 +6,7 @@ use std::{
 
 use eyre::{eyre, Context};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use strum::{EnumIter, IntoEnumIterator};
 use tokio::process::Command;
 
@@ -14,7 +15,8 @@ use crate::{
     env,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, EnumIter)]
+#[serde(rename_all = "kebab-case")]
 pub enum Repository {
     Gateway,
     Rates,

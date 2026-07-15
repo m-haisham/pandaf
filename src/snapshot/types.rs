@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::project::Project;
+use crate::{git::Repository, project::Project};
 
 #[derive(Debug)]
 pub struct SnapshotOptions {
@@ -33,6 +33,7 @@ pub struct SnapshotFile {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RepositorySnapshot {
+    pub repository: Repository,
     pub branch: String,
     pub origin: String,
 }
