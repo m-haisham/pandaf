@@ -17,7 +17,7 @@ pub enum Project {
     App,
     Nest,
     SoPackageSerializer,
-    ApiClient,
+    ApiClients,
 }
 
 impl Project {
@@ -33,7 +33,7 @@ impl Project {
             Project::App => "app",
             Project::Nest => "nest",
             Project::SoPackageSerializer => "so-package-serializer",
-            Project::ApiClient => "api-client",
+            Project::ApiClients => "api-clients",
         }
     }
 
@@ -49,7 +49,7 @@ impl Project {
             Project::App => "hummingbird-app",
             Project::Nest => "nest-app",
             Project::SoPackageSerializer => "so-package-serializer",
-            Project::ApiClient => "api-client",
+            Project::ApiClients => "api-clients",
         }
     }
 
@@ -71,7 +71,7 @@ impl Project {
             Project::App => Some(Container::App),
             Project::Nest => Some(Container::Nest),
             Project::SoPackageSerializer => None,
-            Project::ApiClient => None,
+            Project::ApiClients => None,
         }
     }
 }
@@ -92,7 +92,7 @@ impl Display for Project {
                 Project::App => "App",
                 Project::Nest => "Nest",
                 Project::SoPackageSerializer => "SoPackageSerializer",
-                Project::ApiClient => "ApiClient",
+                Project::ApiClients => "ApiClients",
             }
         )
     }
@@ -141,7 +141,7 @@ pub fn dir_name_to_project(name: &str) -> Option<Project> {
         "app" | "hummingbird-app" => Some(Project::App),
         "nest" | "nest-app" => Some(Project::Nest),
         "so-package-serializer" => Some(Project::SoPackageSerializer),
-        "api-client" => Some(Project::ApiClient),
+        "api-clients" => Some(Project::ApiClients),
         _ => None,
     }
 }

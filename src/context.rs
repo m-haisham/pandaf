@@ -1,4 +1,5 @@
 use console::Term;
+use eyre::{eyre, Context};
 
 use crate::{
     config::{read_config, Config},
@@ -63,7 +64,10 @@ impl WorkingDir {
             return Ok(());
         }
 
-        std::env::set_current_dir(&path)?;
+        std::env::set_current_dir(&path)
+            .map_err(|e| eyre!(e))
+            .wrap_err_with(|| format!("Failed to change directory to: {}", path.display()))?;
+
         self.path = path;
 
         Ok(())

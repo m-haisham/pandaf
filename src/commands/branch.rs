@@ -4,7 +4,7 @@ use strum::IntoEnumIterator;
 
 use crate::{
     context::AppContext,
-    env, git,
+    git,
     project::{detect_project, Project},
     ui::BrushContext,
 };
@@ -14,10 +14,6 @@ pub async fn print_branches(mut context: AppContext) -> eyre::Result<()> {
     let current_branch = git::current_branch().await.ok();
 
     for project in Project::iter() {
-        let Some(container) = project.container() else {
-            continue;
-        };
-
         let project_dir = project.dir()?;
 
         context
