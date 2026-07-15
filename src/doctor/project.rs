@@ -8,6 +8,8 @@ use crate::{
     ui::{components::LabeledLine, traits::Draw},
 };
 
+use super::requirements::get_project_requirements;
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct ProjectHealth {
@@ -26,6 +28,21 @@ pub struct ProjectDbHealth {
     pub username: Option<String>,
     pub password: Option<String>,
     pub connect: Result<(), eyre::Report>,
+}
+
+impl ProjectDbHealth {
+    pub fn url(&self) -> String {
+        let host = self.host.as_deref().unwrap_or("localhost");
+        let port = self.port.unwrap_or(3306);
+        let database = self.database.as_deref().unwrap_or("");
+        let username = self.username.as_deref().unwrap_or("");
+        let password = self.password.as_deref().unwrap_or("");
+
+        format!(
+            "mysql://{}:{}@{}:{}/{}",
+            username, password, host, port, database
+        )
+    }
 }
 
 pub async fn check_project_health(project: Project, dir: &Path) -> eyre::Result<ProjectHealth> {
@@ -96,14 +113,17 @@ impl Draw for ProjectHealth {
             errors.push("Unable to determine git origin".to_owned());
         }
 
-        if let Some(db) = &self.db {
-            if db.connect.is_ok() {
-                values.push("Database connected".to_owned());
+        let requirements = get_project_requirements(&self.project);
+        if requirements.database {
+            if let Some(db) = &self.db {
+                if db.connect.is_ok() {
+                    values.push("Database connected".to_owned());
+                } else {
+                    errors.push(format!("Unable to connect to database at {}", db.url()));
+                }
             } else {
-                errors.push("Unable to connect to database".to_owned());
+                errors.push("Unable to determine database".to_owned());
             }
-        } else {
-            errors.push("Unable to determine database".to_owned());
         }
 
         LabeledLine::labeled(self.project.name().to_string())
@@ -115,7 +135,7 @@ impl Draw for ProjectHealth {
     }
 
     fn draw_verbose(&self, brush: &crate::ui::BrushContext<'_>) -> eyre::Result<()> {
-        todo!()
+        self.draw_compact(brush)
     }
 }
 
