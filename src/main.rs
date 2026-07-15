@@ -99,37 +99,61 @@ pub async fn main() -> eyre::Result<()> {
             }
         },
         Commands::Traefik { command } => {
-            // project_command(context, Project::Traefik, command).await?;
+            project_command(context, None, Container::Traefik, command).await?;
         }
         Commands::Infra { command } => {
-            // project_command(context, Project::Infra, command).await?;
+            project_command(context, None, Container::Infra, command).await?;
         }
         Commands::Gateway { command } => {
-            project_command(context, Project::Gateway, Container::Gateway, command).await?;
+            project_command(context, Some(Project::Gateway), Container::Gateway, command).await?;
         }
         Commands::Rates { command } => {
-            project_command(context, Project::Rates, Container::Rates, command).await?;
+            project_command(context, Some(Project::Rates), Container::Rates, command).await?;
         }
         Commands::Search { command } => {
-            project_command(context, Project::Search, Container::Search, command).await?;
+            project_command(context, Some(Project::Search), Container::Search, command).await?;
         }
         Commands::Operations { command } => {
-            project_command(context, Project::Operations, Container::Operations, command).await?;
+            project_command(
+                context,
+                Some(Project::Operations),
+                Container::Operations,
+                command,
+            )
+            .await?;
         }
         Commands::Foundation { command } => {
-            project_command(context, Project::Foundation, Container::Foundation, command).await?;
+            project_command(
+                context,
+                Some(Project::Foundation),
+                Container::Foundation,
+                command,
+            )
+            .await?;
         }
         Commands::Products { command } => {
-            project_command(context, Project::Products, Container::Products, command).await?;
+            project_command(
+                context,
+                Some(Project::Products),
+                Container::Products,
+                command,
+            )
+            .await?;
         }
         Commands::Api { command } => {
-            project_command(context, Project::ApiGateway, Container::ApiGateway, command).await?;
+            project_command(
+                context,
+                Some(Project::ApiGateway),
+                Container::ApiGateway,
+                command,
+            )
+            .await?;
         }
         Commands::App { command } => {
-            project_command(context, Project::App, Container::App, command).await?;
+            project_command(context, Some(Project::App), Container::App, command).await?;
         }
         Commands::Nest { command } => {
-            project_command(context, Project::Nest, Container::Nest, command).await?;
+            project_command(context, Some(Project::Nest), Container::Nest, command).await?;
         }
         Commands::Fallthrough(args) => {
             let app = args
@@ -143,7 +167,7 @@ pub async fn main() -> eyre::Result<()> {
                 };
 
                 let command = ProjectCommands::parse_from(args.into_iter());
-                project_command(context, project, container, command).await?;
+                project_command(context, Some(project), container, command).await?;
             } else if let Some(project) = project::detect_project()? {
                 let Some(container) = project.container() else {
                     bail!("This project does not have a docker container to run commands on");
@@ -154,7 +178,7 @@ pub async fn main() -> eyre::Result<()> {
 
                 let command = ProjectCommands::parse_from(project_args.into_iter());
 
-                project_command(context, project, container, command).await?;
+                project_command(context, Some(project), container, command).await?;
             } else {
                 eyre::bail!("No project detected and no project provided");
             }
@@ -166,7 +190,7 @@ pub async fn main() -> eyre::Result<()> {
 
 async fn project_command(
     _context: AppContext,
-    project: Project,
+    project: Option<Project>,
     container: Container,
     command: ProjectCommands,
 ) -> eyre::Result<()> {
@@ -224,6 +248,10 @@ async fn project_command(
             docker::compose_exec(&compose_file, &args).await?;
         }
         ProjectCommands::Dump { key } => {
+            let Some(project) = project else {
+                eyre::bail!("No project provided");
+            };
+
             let infra_env = infra::get_infra_env().await?;
             set_current_infra()?;
 
@@ -263,6 +291,10 @@ async fn project_command(
             tracing::info!("Wrote dump to file {}", dump_file.display());
         }
         ProjectCommands::Restore { path } => {
+            let Some(project) = project else {
+                eyre::bail!("No project provided");
+            };
+
             let infra_env = infra::get_infra_env().await?;
             set_current_infra()?;
 
