@@ -6,7 +6,7 @@ use crate::{
     context::AppContext,
     env, git,
     project::{detect_project, Project},
-    ui::DrawContext,
+    ui::BrushContext,
 };
 
 pub async fn print_branches(mut context: AppContext) -> eyre::Result<()> {
@@ -38,7 +38,7 @@ pub async fn print_branches(mut context: AppContext) -> eyre::Result<()> {
 
         let commit = git::current_commit().await;
 
-        let draw = DrawContext::new_from_context(&context);
+        let draw = BrushContext::new_from_context(&context);
 
         let style = Style::new();
 
@@ -71,7 +71,7 @@ pub async fn print_branches(mut context: AppContext) -> eyre::Result<()> {
 
         let value = format!("{}{}", style.apply_to(branch), commit_output);
 
-        draw.draw_labeled_styled(project.name(), &value, style)?;
+        draw.labeled_styled(project.name(), &value, style)?;
     }
 
     Ok(())

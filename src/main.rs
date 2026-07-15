@@ -61,7 +61,7 @@ pub async fn main() -> eyre::Result<()> {
 
     match cli.command {
         Commands::Doctor => {
-            doctor::check_health().await?;
+            doctor::check_health(context).await?;
         }
         Commands::Setup => {
             setup::setup(cli.non_interactive).await?;

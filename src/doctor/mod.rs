@@ -3,7 +3,9 @@ mod project;
 use eyre::{eyre, WrapErr};
 use strum::IntoEnumIterator;
 
-use crate::{env::get_hbt_root, project::Project, utils::which};
+use crate::{
+    context::AppContext, env::get_hbt_root, project::Project, ui::BrushContext, utils::which,
+};
 
 #[allow(dead_code)] // We expect this to be used in the future
 pub struct Health {
@@ -19,18 +21,15 @@ pub struct HealthEnvironment {
 }
 
 impl HealthEnvironment {
-    pub fn draw(&self) {
-        println!("Environment:");
-
-        println!(
-            "- HBT_ROOT: {}",
-            self.hbt_root.as_deref().unwrap_or("Not set")
-        );
-        println!(
-            "- HBT_DOCKER_ROOT: {}",
-            self.hbt_docker_root.as_deref().unwrap_or("Not set")
-        );
-        println!("- PATH: {}", self.path.as_deref().unwrap_or("Not set"));
+    pub fn draw(&self, brush: &BrushContext<'_>) -> eyre::Result<()> {
+        brush.heading("Environment")?;
+        brush.labeled("HBT_ROOT", self.hbt_root.as_deref().unwrap_or("Not set"))?;
+        brush.labeled(
+            "HBT_DOCKER_ROOT",
+            self.hbt_docker_root.as_deref().unwrap_or("Not set"),
+        )?;
+        brush.labeled("PATH", self.path.as_deref().unwrap_or("Not set"))?;
+        Ok(())
     }
 }
 
@@ -58,14 +57,16 @@ impl HealthDocker {
     }
 }
 
-pub async fn check_health() -> eyre::Result<Health> {
+pub async fn check_health(context: AppContext) -> eyre::Result<Health> {
     let env = HealthEnvironment {
         hbt_root: std::env::var("HBT_ROOT").ok(),
         hbt_docker_root: std::env::var("HBT_DOCKER_ROOT").ok(),
         path: which("hbt").await?,
     };
 
-    env.draw();
+    let brush = BrushContext::new_from_context(&context);
+
+    env.draw(&brush)?;
 
     let docker = HealthDocker {
         version: docker_version().await?,

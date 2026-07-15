@@ -1,20 +1,29 @@
-use console::Term;
+pub mod components;
+pub mod styles;
+pub mod traits;
+
+use console::{Style, Term};
+use styles::Styles;
 
 use crate::context::AppContext;
 
+const LABEL_WIDTH: usize = 20;
+
 #[derive(Debug)]
-pub struct DrawContext<'a> {
+pub struct BrushContext<'a> {
     pub term: &'a Term,
     verbose: u8,
     pub indent_level: usize,
+    pub styles: Styles,
 }
 
-impl<'a> DrawContext<'a> {
+impl<'a> BrushContext<'a> {
     pub fn new(term: &'a Term, verbose: u8) -> Self {
         Self {
             term,
             verbose,
             indent_level: 0,
+            styles: Styles::new(),
         }
     }
 
@@ -30,6 +39,23 @@ impl<'a> DrawContext<'a> {
         self.indent_level -= 1;
     }
 
+    pub fn copy_with_indent(&self, indent_level: usize) -> Self {
+        Self {
+            term: self.term,
+            verbose: self.verbose,
+            indent_level,
+            styles: self.styles.clone(),
+        }
+    }
+
+    pub fn indented<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&Self) -> R,
+    {
+        let indented_draw = self.copy_with_indent(self.indent_level + 1);
+        f(&indented_draw)
+    }
+
     pub fn is_verbose(&self) -> bool {
         self.verbose > 0
     }
@@ -41,13 +67,27 @@ impl<'a> DrawContext<'a> {
     }
 }
 
-impl DrawContext<'_> {
+impl BrushContext<'_> {
+    #[inline]
+    pub fn draw<T>(&self, drawable: T) -> eyre::Result<()>
+    where
+        T: traits::Draw,
+    {
+        drawable.draw(self)
+    }
+
     pub fn heading(&self, heading: &str) -> eyre::Result<()> {
-        self.term.write_line(&format!("== {heading} =="))?;
+        self.term.write_line(
+            &Style::new()
+                .bold()
+                .apply_to(format!("== {heading} =="))
+                .to_string(),
+        )?;
+
         Ok(())
     }
 
-    pub fn draw_labeled(&self, label: &str, value: &str) -> eyre::Result<()> {
+    pub fn labeled(&self, label: &str, message: &str) -> eyre::Result<()> {
         let indent = "  ".repeat(self.indent_level);
 
         const LABEL_WIDTH: usize = 20;
@@ -61,23 +101,21 @@ impl DrawContext<'_> {
         };
 
         let label = format!("{indent}{label}");
-        let line = format!("{label:>LABEL_WIDTH$} {value}");
+        let line = format!("{label:<LABEL_WIDTH$} {message}");
 
         self.term.write_line(&line)?;
 
         Ok(())
     }
 
-    pub fn draw_labeled_styled(
+    pub fn labeled_styled(
         &self,
         label: &str,
-        value: &str,
+        message: &str,
         style: console::Style,
     ) -> eyre::Result<()> {
         let indent = "  ".repeat(self.indent_level);
 
-        const LABEL_WIDTH: usize = 20;
-
         let available_width = LABEL_WIDTH.saturating_sub(indent.len() + 1);
 
         let label = if label.len() > available_width {
@@ -87,9 +125,22 @@ impl DrawContext<'_> {
         };
 
         let label = format!("{indent}{label}");
-        let line = format!("{:<LABEL_WIDTH$} {value}", style.apply_to(label));
+        let line = format!("{:<LABEL_WIDTH$} {message}", style.apply_to(label));
 
         self.term.write_line(&line)?;
+
+        Ok(())
+    }
+
+    pub fn error_line(&self, message: &str) -> eyre::Result<()> {
+        let label = "Error !!";
+
+        self.term.write_line(
+            &Style::new()
+                .red()
+                .apply_to(format!("{label:>LABEL_WIDTH$} {message}"))
+                .to_string(),
+        )?;
 
         Ok(())
     }

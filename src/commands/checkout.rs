@@ -9,7 +9,7 @@ use crate::{
     context::AppContext,
     docker, env, git,
     project::{read_project_env, set_current_project, Project},
-    ui::DrawContext,
+    ui::BrushContext,
 };
 
 pub async fn checkout(
@@ -34,7 +34,7 @@ pub async fn checkout(
         }
     };
 
-    let draw = DrawContext::new_from_context(&context);
+    let draw = BrushContext::new_from_context(&context);
     draw.write_line(&format!(
         "Checking out branch: {} (fallback to 'develop')",
         style(&branch).bold()
@@ -92,7 +92,7 @@ pub async fn checkout(
             migrate_output
         );
 
-        draw.draw_labeled_styled(project.name(), &value, line_style)?;
+        draw.labeled_styled(project.name(), &value, line_style)?;
     }
 
     Ok(())
