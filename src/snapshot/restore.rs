@@ -1,6 +1,6 @@
 use std::{
-    fs::File,
-    io::{BufReader, Seek},
+    fs::{self, File, OpenOptions},
+    io::{self, BufReader, BufWriter, Seek},
     path::Path,
 };
 
@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::{
-    types::{MysqlDump, RepositorySnapshot, SnapshotManifest},
+    types::{MysqlDump, RepositoryFile, RepositorySnapshot, SnapshotManifest},
     utils::hash_as_hex,
     MANIFEST_FILE,
 };
@@ -35,7 +35,7 @@ pub async fn restore_snapshot(context: AppContext, zip_path: &Path) -> eyre::Res
     let manifest = read_manifest_from_snapshot(unzipped_dir.path())?;
 
     for repository in manifest.repositories {
-        restore_repository(&context.working_dir, &repository).await?;
+        restore_repository(&context.working_dir, unzipped_dir.path(), &repository).await?;
     }
 
     for dump in manifest.mysql_dumps {
@@ -60,16 +60,97 @@ fn read_manifest_from_snapshot(snapshot_dir: &Path) -> eyre::Result<SnapshotMani
 
 async fn restore_repository(
     working_dir: &WorkingDir,
-    snapshot: &RepositorySnapshot,
+    snapshot_dir: &Path,
+    repository_snapshot: &RepositorySnapshot,
 ) -> eyre::Result<()> {
-    let repository_dir = snapshot.repository.dir()?;
+    let repository_dir = repository_snapshot.repository.dir()?;
+
     working_dir
         .with_working_dir(&repository_dir, async |_| {
-            git::set_origin(&snapshot.origin).await?;
-            git::checkout(&snapshot.branch).await?;
+            git::set_origin(&repository_snapshot.origin).await?;
+            git::checkout(&repository_snapshot.branch).await?;
             Ok(())
         })
         .await?;
+
+    for repository_file in &repository_snapshot.files {
+        restore_repository_files(snapshot_dir, &repository_dir, repository_file).await?;
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument(
+    skip_all,
+    fields(
+        restore_path = %repository_file.restore_path.display()
+    )
+)]
+async fn restore_repository_files(
+    snapshot_dir: &Path,
+    repository_dir: &Path,
+    repository_file: &RepositoryFile,
+) -> eyre::Result<()> {
+    tracing::info!(
+        "Restoring repository file: {}",
+        repository_file.restore_path.display()
+    );
+
+    let file_path = snapshot_dir.join(&repository_file.file.path);
+    if !file_path.exists() {
+        return Err(eyre!("Repository file not found: {}", file_path.display()));
+    }
+
+    let file = File::open(&file_path)
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to open repository file for reading")?;
+
+    let mut file_reader = BufReader::new(file);
+    let actual_hash = hash_as_hex(&mut file_reader)?;
+    file_reader
+        .rewind()
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to rewind repository file")?;
+
+    if actual_hash == repository_file.file.hash {
+        tracing::info!("Repository file hash matches expected hash")
+    } else {
+        return Err(eyre!(
+            "Hash mismatch for repository file: {}",
+            file_path.display()
+        ));
+    }
+
+    let restore_path = repository_dir.join(&repository_file.restore_path);
+    if let Some(parent) = restore_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| eyre!(e))
+            .wrap_err_with(|| {
+                format!(
+                    "Failed to create parent directory for restore path: {}",
+                    parent.display()
+                )
+            })?;
+    }
+
+    let restore_file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(&restore_path)
+        .map_err(|e| eyre!(e))
+        .wrap_err_with(|| format!("Failed to open restore file: {}", restore_path.display()))?;
+
+    let mut restore_writer = BufWriter::new(restore_file);
+    io::copy(&mut file_reader, &mut restore_writer)
+        .map_err(|e| eyre!(e))
+        .wrap_err_with(|| {
+            format!(
+                "Failed to copy data to restore file: {}",
+                restore_path.display()
+            )
+        })?;
+
     Ok(())
 }
 
