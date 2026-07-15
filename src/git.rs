@@ -314,6 +314,40 @@ pub async fn git_apply(path: &Path) -> eyre::Result<()> {
     }
 }
 
+pub async fn git_push() -> eyre::Result<()> {
+    let output = Command::new("git")
+        .arg("push")
+        .output()
+        .await
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to push changes")?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        let stderr = String::from_utf8(output.stderr)
+            .unwrap_or_else(|e| format!("Failed to convert git push stderr to string: {:?}", e));
+        Err(eyre!("Failed to push changes: {}", stderr))
+    }
+}
+
+pub async fn git_pull() -> eyre::Result<()> {
+    let output = Command::new("git")
+        .arg("pull")
+        .output()
+        .await
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to pull changes")?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        let stderr = String::from_utf8(output.stderr)
+            .unwrap_or_else(|e| format!("Failed to convert git pull stderr to string: {:?}", e));
+        Err(eyre!("Failed to pull changes: {}", stderr))
+    }
+}
+
 #[derive(Debug)]
 pub enum GitChangeStatus {
     Modified,
