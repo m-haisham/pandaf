@@ -16,7 +16,9 @@ pub const HBT_PROJECTS: [&str; 11] = [
     "nest",
 ];
 
-pub async fn set_project(app: &str) -> eyre::Result<()> {
+pub async fn set_current_project(app: &str) -> eyre::Result<()> {
+    tracing::info!("Setting current directory to {}", app);
+
     let hbt_docker_root = std::env::var("HBT_DOCKER_ROOT")
         .map_err(|e| eyre!(e))
         .wrap_err("HBT_DOCKER_ROOT not set")?;
@@ -101,4 +103,6 @@ pub enum ProjectCommands {
     Composer { rest: Vec<String> },
     /// Alias for phpunit in the project
     Phpunit { rest: Vec<String> },
+    /// Dump the database
+    Dump,
 }

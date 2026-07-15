@@ -1,5 +1,26 @@
 use eyre::{eyre, WrapErr};
 
+pub async fn mysql_dump(database: &str, password: &str) -> eyre::Result<String> {
+    let password = format!("-p{}", password);
+
+    let mut cmd = tokio::process::Command::new("docker-compose");
+    cmd.args(&["exec", "hbt-service-mysql", "mysqldump"]);
+    cmd.args(&["-u", "root"]);
+    cmd.args(&[&password]);
+    cmd.args(&[database]);
+
+    let output = cmd.output().await?;
+
+    if output.status.success() {
+        Ok(String::from_utf8(output.stdout)?)
+    } else {
+        let stderr = String::from_utf8(output.stderr)
+            .unwrap_or_else(|e| format!("Failed to convert stderr to string: {:?}", e));
+
+        Err(eyre!("Failed to run mysqldump: {}", stderr))
+    }
+}
+
 pub async fn compose_up(args: &[String]) -> eyre::Result<()> {
     let mut cmd = tokio::process::Command::new("docker-compose");
     cmd.args(&["up", "-d"]);

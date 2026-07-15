@@ -2,11 +2,17 @@ mod cli;
 mod docker;
 mod doctor;
 mod global;
+mod gzip;
+mod infra;
 mod project;
+
+use std::path::PathBuf;
 
 use clap::Parser;
 use cli::{Cli, Commands, GlobalCommands};
-use project::{set_project, ProjectCommands, HBT_PROJECTS};
+use eyre::{eyre, Context};
+use infra::set_current_infra;
+use project::{set_current_project, ProjectCommands, HBT_PROJECTS};
 use tracing::level_filters::LevelFilter;
 
 #[tokio::main]
@@ -70,7 +76,7 @@ pub async fn main() -> eyre::Result<()> {
 }
 
 async fn project_command(app: String, command: ProjectCommands) -> eyre::Result<()> {
-    set_project(&app).await?;
+    set_current_project(&app).await?;
 
     match command {
         ProjectCommands::Up { rest } => {
@@ -122,6 +128,34 @@ async fn project_command(app: String, command: ProjectCommands) -> eyre::Result<
             let mut args = vec!["php-fpm", "php", "vendor/bin/phpunit"];
             args.extend(rest.iter().map(|s| s.as_str()));
             docker::compose_exec(&args).await?;
+        }
+        ProjectCommands::Dump => {
+            let infra_env = infra::get_infra_env().await?;
+            set_current_infra()?;
+
+            let hbt_root = std::env::var("HBT_ROOT")
+                .map_err(|e| eyre!(e))
+                .wrap_err("HBT_ROOT not set")?;
+
+            let dump_file = PathBuf::from(hbt_root)
+                .join("dumps")
+                .join(format!("{}.sql.gz", app));
+
+            if let Some(dump_dir) = dump_file.parent() {
+                std::fs::create_dir_all(dump_dir)
+                    .map_err(|e| eyre!(e))
+                    .wrap_err("Failed to create dump directory")?;
+            }
+
+            tracing::info!("Dumping database for {}", app);
+            let dump = docker::mysql_dump(&app, &infra_env.mysql_db_password).await?;
+
+            tracing::info!("Compressing writing to file: {}", dump_file.display());
+            let dump = gzip::gzip(&dump).await?;
+
+            std::fs::write(dump_file, dump)
+                .map_err(|e| eyre!(e))
+                .wrap_err("Failed to write dump to file")?;
         }
     }
 
