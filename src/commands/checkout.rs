@@ -41,6 +41,10 @@ pub async fn checkout(
     ))?;
 
     for project in Project::iter() {
+        if !project.has_docker() {
+            continue;
+        }
+
         let Some(dir_name) = project.dir_name() else {
             continue;
         };
