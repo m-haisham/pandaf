@@ -35,6 +35,16 @@ impl Container {
             Container::Nest => "hbt-nest",
         }
     }
+
+    pub fn compose_file(&self) -> eyre::Result<String> {
+        let hbt_docker_root = get_hbt_docker_root()?;
+        let compose_file = hbt_docker_root.join(self.name()).join("docker-compose.yml");
+
+        compose_file
+            .to_str()
+            .ok_or_else(|| eyre!("Failed to convert compose file path to string"))
+            .map(String::from)
+    }
 }
 
 pub async fn mysql_dump(database: &str, password: &str) -> eyre::Result<String> {
@@ -115,8 +125,9 @@ pub async fn mysql_check_connect(database: &str, password: &str) -> eyre::Result
     }
 }
 
-pub async fn compose_up(args: &[String]) -> eyre::Result<()> {
+pub async fn compose_up(compose_file: &str, args: &[String]) -> eyre::Result<()> {
     let mut cmd = tokio::process::Command::new("docker-compose");
+    cmd.args(["-f", compose_file]);
     cmd.args(["up", "-d"]);
     cmd.args(args);
 
@@ -128,8 +139,9 @@ pub async fn compose_up(args: &[String]) -> eyre::Result<()> {
     Ok(())
 }
 
-pub async fn compose_down(args: &[String]) -> eyre::Result<()> {
+pub async fn compose_down(compose_file: &str, args: &[String]) -> eyre::Result<()> {
     let mut cmd = tokio::process::Command::new("docker-compose");
+    cmd.args(["-f", compose_file]);
     cmd.args(["down"]);
     cmd.args(args);
 

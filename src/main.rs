@@ -17,24 +17,17 @@ mod ui;
 mod update;
 mod utils;
 
-use std::{
-    fs::File,
-    io::{BufReader, BufWriter},
-    path::PathBuf,
-};
-
 use clap::Parser;
 use cli::{Cli, Commands, GlobalCommands, ProjectCommands};
 use commands::{get_config, print_config, set_config};
 use context::AppContext;
-use dialoguer::{theme::ColorfulTheme, Confirm};
 use docker::Container;
-use env::get_hbt_root;
-use eyre::{eyre, Context};
+use eyre::{bail, eyre, Context};
 use git::current_branch;
 use infra::set_current_infra;
 use kebab::kebabify;
 use project::{dir_name_to_project, set_current_project, Project};
+use std::path::PathBuf;
 use tracing::level_filters::LevelFilter;
 
 #[tokio::main]
@@ -112,31 +105,31 @@ pub async fn main() -> eyre::Result<()> {
             // project_command(context, Project::Infra, command).await?;
         }
         Commands::Gateway { command } => {
-            project_command(context, Project::Gateway, command).await?;
+            project_command(context, Project::Gateway, Container::Gateway, command).await?;
         }
         Commands::Rates { command } => {
-            project_command(context, Project::Rates, command).await?;
+            project_command(context, Project::Rates, Container::Rates, command).await?;
         }
         Commands::Search { command } => {
-            project_command(context, Project::Search, command).await?;
+            project_command(context, Project::Search, Container::Search, command).await?;
         }
         Commands::Operations { command } => {
-            project_command(context, Project::Operations, command).await?;
+            project_command(context, Project::Operations, Container::Operations, command).await?;
         }
         Commands::Foundation { command } => {
-            project_command(context, Project::Foundation, command).await?;
+            project_command(context, Project::Foundation, Container::Foundation, command).await?;
         }
         Commands::Products { command } => {
-            project_command(context, Project::Products, command).await?;
+            project_command(context, Project::Products, Container::Products, command).await?;
         }
         Commands::Api { command } => {
-            project_command(context, Project::ApiGateway, command).await?;
+            project_command(context, Project::ApiGateway, Container::ApiGateway, command).await?;
         }
         Commands::App { command } => {
-            project_command(context, Project::App, command).await?;
+            project_command(context, Project::App, Container::App, command).await?;
         }
         Commands::Nest { command } => {
-            project_command(context, Project::Nest, command).await?;
+            project_command(context, Project::Nest, Container::Nest, command).await?;
         }
         Commands::Fallthrough(args) => {
             let app = args
@@ -145,15 +138,23 @@ pub async fn main() -> eyre::Result<()> {
                 .ok_or_else(|| eyre::eyre!("No command provided"))?;
 
             if let Some(project) = dir_name_to_project(&app) {
+                let Some(container) = project.container() else {
+                    bail!("This project does not have a docker container to run commands on");
+                };
+
                 let command = ProjectCommands::parse_from(args.into_iter());
-                project_command(context, project, command).await?;
-            } else if let Some(app) = project::detect_project()? {
-                let mut project_args = vec![app.name().to_string()];
+                project_command(context, project, container, command).await?;
+            } else if let Some(project) = project::detect_project()? {
+                let Some(container) = project.container() else {
+                    bail!("This project does not have a docker container to run commands on");
+                };
+
+                let mut project_args = vec![project.name().to_string()];
                 project_args.extend(args.into_iter());
 
                 let command = ProjectCommands::parse_from(project_args.into_iter());
 
-                project_command(context, app, command).await?;
+                project_command(context, project, container, command).await?;
             } else {
                 eyre::bail!("No project detected and no project provided");
             }
@@ -164,22 +165,24 @@ pub async fn main() -> eyre::Result<()> {
 }
 
 async fn project_command(
-    context: AppContext,
+    _context: AppContext,
     project: Project,
+    container: Container,
     command: ProjectCommands,
 ) -> eyre::Result<()> {
     set_current_project(&project).await?;
+    let compose_file = container.compose_file()?;
 
     match command {
         ProjectCommands::Up { rest } => {
-            docker::compose_up(&rest).await?;
+            docker::compose_up(&compose_file, &rest).await?;
         }
         ProjectCommands::Down { rest } => {
-            docker::compose_down(&rest).await?;
+            docker::compose_down(&compose_file, &rest).await?;
         }
         ProjectCommands::Restart { rest } => {
-            docker::compose_down(&rest).await?;
-            docker::compose_up(&rest).await?;
+            docker::compose_down(&compose_file, &rest).await?;
+            docker::compose_up(&compose_file, &rest).await?;
         }
         ProjectCommands::Shell { rest } => {
             let mut args = vec!["php-fpm", "/bin/bash"];
