@@ -6,11 +6,13 @@ use std::{
 };
 
 use chrono::Utc;
+use color_eyre::Section;
 use eyre::{eyre, Context};
+use itertools::Itertools;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 
-use super::types::{MysqlDump, RepositorySnapshot, SnapshotManifest};
+use super::types::{MysqlDump, RepositorySnapshot, SnapshotManifest, SnapshotOptions};
 use crate::{
     compress,
     context::{AppContext, WorkingDir},
@@ -20,7 +22,7 @@ use crate::{
 };
 
 #[tracing::instrument(skip_all)]
-pub async fn create_snapshot(context: AppContext) -> eyre::Result<()> {
+pub async fn create_snapshot(context: AppContext, options: SnapshotOptions) -> eyre::Result<()> {
     tracing::info!("Creating snapshot...");
 
     let data_dir = context.data_dir()?;
@@ -43,7 +45,7 @@ pub async fn create_snapshot(context: AppContext) -> eyre::Result<()> {
 
     let repositories = create_repository_snapshots(&context.working_dir).await?;
 
-    let mysql_dumps = store_database_dumps(&tempdir)
+    let mysql_dumps = store_database_dumps(&tempdir, &options)
         .await
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to store database dumps")?;
@@ -106,7 +108,10 @@ pub async fn repository_snapshot(
     Ok(snapshot)
 }
 
-pub async fn store_database_dumps(temp_dir: &TempDir) -> eyre::Result<Vec<MysqlDump>> {
+pub async fn store_database_dumps(
+    temp_dir: &TempDir,
+    options: &SnapshotOptions,
+) -> eyre::Result<Vec<MysqlDump>> {
     tracing::info!("Dumping databases for snapshot...");
 
     let mysql_dumps_dir = temp_dir.path().join(MYSQL_DUMPS_DIR);
@@ -119,7 +124,40 @@ pub async fn store_database_dumps(temp_dir: &TempDir) -> eyre::Result<Vec<MysqlD
     let configured_dbs = db::get_configured_dbs().await?;
     let mut database_dumps = vec![];
 
-    for project_db in configured_dbs {
+    let databases_to_dump = match options.include_databases.as_ref() {
+        Some(include_databases) => {
+            let databases_not_found = include_databases
+                .iter()
+                .filter(|db| {
+                    !configured_dbs
+                        .iter()
+                        .find(|conf| conf.db_database == db.as_str())
+                        .is_some()
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+
+            if !databases_not_found.is_empty() {
+                return Err(eyre!(
+                    "Databases not found: {}",
+                    databases_not_found.join(", ")
+                ))
+                .with_suggestion(|| {
+                    let available_databases =
+                        configured_dbs.iter().map(|db| &db.db_database).join(", ");
+                    format!("Please select from the following: {}", available_databases)
+                });
+            }
+
+            configured_dbs
+                .into_iter()
+                .filter(|db| include_databases.contains(&db.db_database))
+                .collect::<Vec<_>>()
+        }
+        None => configured_dbs,
+    };
+
+    for project_db in databases_to_dump {
         tracing::info!("Dumping database {}", project_db.project.name());
 
         let (dump_name, dump_path) = db::dump_project(&project_db, &mysql_dumps_dir)

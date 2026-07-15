@@ -5,6 +5,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::project::Project;
 
+#[derive(Debug)]
+pub struct SnapshotOptions {
+    pub include_databases: Option<Vec<String>>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SnapshotManifest {
     pub repositories: Vec<RepositorySnapshot>,

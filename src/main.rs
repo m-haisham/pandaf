@@ -28,6 +28,7 @@ use git::current_branch;
 use infra::set_current_infra;
 use kebab::kebabify;
 use project::{dir_name_to_project, Project};
+use snapshot::SnapshotOptions;
 use std::path::PathBuf;
 use tracing::level_filters::LevelFilter;
 
@@ -74,7 +75,7 @@ pub async fn main() -> eyre::Result<()> {
             setup::setup(cli.non_interactive).await?;
         }
         Commands::Dump { key } => {
-            snapshot::create_snapshot(context).await?;
+            commands::dump_all_project_dbs(context, key).await?;
         }
         Commands::Restore { key } => {
             commands::restore_all_project_dbs(context, key).await?;
@@ -101,8 +102,9 @@ pub async fn main() -> eyre::Result<()> {
             }
         },
         Commands::Snapshot { command } => match command {
-            SnapshotCommands::Create => {
-                snapshot::create_snapshot(context).await?;
+            SnapshotCommands::Create { include_databases } => {
+                let options = SnapshotOptions { include_databases };
+                snapshot::create_snapshot(context, options).await?;
             }
             SnapshotCommands::Restore { path } => {
                 snapshot::restore_snapshot(context, &path).await?;

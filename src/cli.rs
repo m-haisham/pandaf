@@ -151,7 +151,11 @@ pub enum GlobalCommands {
 #[derive(Debug, Subcommand)]
 pub enum SnapshotCommands {
     /// Create a snapshot of the project
-    Create,
+    Create {
+        /// Include specific databases in the snapshot or all databases if not specified
+        #[arg(long, short, value_delimiter = ',', num_args = 1..)]
+        include_databases: Option<Vec<String>>,
+    },
     /// Restore a snapshot of the project
     Restore {
         /// Path to the snapshot file
