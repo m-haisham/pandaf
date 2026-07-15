@@ -87,6 +87,11 @@ impl WorkingDir {
     where
         F: AsyncFnOnce(&Path) -> eyre::Result<R>,
     {
+        tracing::info!(
+            "Temporarily changing directory to: {}",
+            working_dir.display()
+        );
+
         let parent_path = std::env::current_dir()?;
         std::env::set_current_dir(working_dir)
             .map_err(|e| eyre!(e))
@@ -104,6 +109,8 @@ impl WorkingDir {
                     parent_path.display()
                 )
             })?;
+
+        tracing::info!("Changed directory back to: {}", parent_path.display());
 
         result
     }

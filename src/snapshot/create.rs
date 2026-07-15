@@ -78,9 +78,12 @@ pub async fn create_snapshot(context: AppContext, options: SnapshotOptions) -> e
     Ok(())
 }
 
+#[tracing::instrument(skip_all)]
 pub async fn create_repository_snapshots(
     working_dir: &WorkingDir,
 ) -> eyre::Result<Vec<RepositorySnapshot>> {
+    tracing::info!("Creating repository snapshots...");
+
     let mut snapshots = vec![];
 
     for repository in Repository::iter() {
@@ -91,10 +94,13 @@ pub async fn create_repository_snapshots(
     Ok(snapshots)
 }
 
+#[tracing::instrument(skip_all)]
 pub async fn repository_snapshot(
     working_dir: &WorkingDir,
     repository: Repository,
 ) -> eyre::Result<RepositorySnapshot> {
+    tracing::info!("Creating snapshot for repository: {}", repository);
+
     let repository_dir = repository.dir()?;
     let git_info = working_dir
         .with_working_dir(&repository_dir, async |_| git::git_info().await)
