@@ -1,12 +1,9 @@
 use eyre::{eyre, WrapErr};
 use serde::{de::DeserializeOwned, Deserialize};
-use std::{env::set_current_dir, fmt::Display};
+use std::fmt::Display;
 use strum::EnumIter;
 
-use crate::{
-    docker::Container,
-    env::{get_hbt_docker_root, get_hbt_root},
-};
+use crate::{docker::Container, env::get_hbt_root};
 
 #[derive(Debug, Hash, Clone, EnumIter, PartialEq, Eq)]
 pub enum Project {
@@ -99,30 +96,6 @@ impl Display for Project {
             }
         )
     }
-}
-
-pub fn get_project_dir(project: &Project) -> eyre::Result<Option<std::path::PathBuf>> {
-    let hbt_root = get_hbt_root()?;
-    let project_dir = hbt_root.join(project.dir_name());
-
-    Ok(Some(project_dir))
-}
-
-/// FIXME: This function does not need to be async because it does not perform any async operations
-///
-/// FIXME: The name of this function is misleading, should specify it is setting
-/// the current directory to the project docker environment
-pub async fn set_current_project(project: &Project) -> eyre::Result<()> {
-    tracing::info!("Setting current directory to {}", project.name());
-
-    let hbt_docker_root = get_hbt_docker_root()?;
-    let project_dir = hbt_docker_root.join(format!("hbt-{}", project.name()));
-
-    set_current_dir(project_dir)
-        .map_err(|e| eyre!(e))
-        .wrap_err("Failed to change directory")?;
-
-    Ok(())
 }
 
 #[tracing::instrument]
