@@ -6,10 +6,16 @@
 
 ## Features
 
-- Run commands globally across all projects or target specific projects.
+- Run commands globally across all projects or target specific projects/services.
 - Supports interactive and non-interactive modes.
-- Includes debugging options for increased verbosity.
-- Built-in commands for managing individual projects and services.
+- Adjustable verbosity for debugging (`-v`, `-vv`, etc).
+- Built-in commands for managing, starting, stopping, and restarting projects and services.
+- Database dump and restore for MySQL.
+- Snapshot and restore of project state (code and database).
+- Branch management and checkout across all projects.
+- Configuration management via CLI.
+- Aliases for common developer tools (Node, npm, yarn, PHP, Composer, Artisan, PHPUnit).
+- Fallthrough for custom/external commands.
 
 ## Installation
 
@@ -26,37 +32,88 @@ USAGE:
     hbt [OPTIONS] <COMMAND>
 
 OPTIONS:
-    -v, --verbose             Increase verbosity for debugging purposes (use multiple times for higher levels).
-    -n, --non-interactive     Run the command in non-interactive mode (use with caution).
+    -v, --verbose             Increase verbosity for debugging purposes (repeatable).
+    -n, --non-interactive     Run the command in non-interactive mode (dangerous).
     -h, --help                Show help information.
     --version                 Show the version.
 ```
 
 ### Commands
 
-#### General Commands
+#### Top-Level Commands
 
-- **doctor**
-  - Checks the configuration for potential issues.
+- **start**  
+  Start the development environment and check for potential issues.
 
-#### Database Commands
+- **stop**  
+  Stop the development environment and check for potential issues.
 
-- **dump**
+- **doctor**  
+  Check your configuration for potential issues.
 
-  - Dumps MySQL databases.
-  - Arguments:
-    - `key` (type: Kebab) — A unique key to identify the dump.
+- **setup**  
+  Set up the development environment.
 
-- **restore**
-  - Restores MySQL databases.
-  - Arguments:
-    - `key` (type: Kebab) — A unique key for the restore.
+- **branch**  
+  List current branches across all projects.
+
+- **checkout [--branch <branch>] [--migrate]**  
+  Checkout a branch across all projects.  
+  - `--branch <branch>`: The branch to check out (optional, defaults to current project branch).  
+  - `--migrate`: Migrate the database after checking out.
+
+- **dump --key <key>**  
+  Dump MySQL databases.  
+  - `key`: A unique key to identify the dump.
+
+- **restore --key <key>**  
+  Restore MySQL databases.  
+  - `key`: A unique key for the restore.
+
+- **config [key] [value]**  
+  Set or get a configuration value.  
+  - If no key is provided, all config values are shown.  
+  - If only key is provided, shows the value.  
+  - If both key and value are provided, sets the value.
+
+- **redis [args...]**  
+  Run redis commands (advanced, raw passthrough).
+
+#### Snapshot Commands
+
+- **snapshot create [--include-repositories repo1,repo2,...] [--generate-patch] [--include-databases db1,db2,...]**  
+  Create a snapshot of the project.  
+  - `--include-repositories`: Only include specified repositories.  
+  - `--generate-patch`: Generate a patch file for current changes.  
+  - `--include-databases`: Only include specified databases.
+
+- **snapshot restore --path <path>**  
+  Restore a snapshot from a file.  
+  - `--path`: Path to the snapshot file.
+
+#### Global Project Commands
+
+Affect all projects in the stack:
+
+- **all up [args...]**  
+  Start all projects.
+
+- **all down [args...]**  
+  Stop all projects.
+
+- **all restart [args...]**  
+  Restart all projects.
+
+- **all git [args...]**  
+  Run a git command for all projects.
+
+- **all artisan [args...]**  
+  Run an artisan command for all projects.
 
 #### Project-Specific Commands
 
-Run commands for individual projects or services within the stack. Supported projects include:
-
-- `traefik`, `infra`, `gateway`, `rates`, `search`, `operations`, `foundation`, `products`, `api`, `app`, `nest`
+Run commands for individual projects or services. Supported projects include:  
+`traefik`, `infra`, `gateway`, `rates`, `search`, `operations`, `foundation`, `products`, `api`, `app`, `nest`
 
 Example usage:
 
@@ -66,81 +123,46 @@ hbt rates up
 
 Each project supports the following subcommands:
 
-- **up**
+- **up [args...]**  
+  Start the project.
 
-  - Start the project.
+- **down [args...]**  
+  Stop the project.
 
-- **down**
+- **restart [args...]**  
+  Restart the project.
 
-  - Stop the project.
+- **shell [args...]**  
+  Start an interactive shell in the project.
 
-- **restart**
+- **node [args...]**  
+  Alias for running Node.js commands.
 
-  - Restart the project.
+- **npm [args...]**  
+  Alias for running npm commands.
 
-- **shell**
+- **yarn [args...]**  
+  Alias for running yarn commands.
 
-  - Start an interactive shell in the project.
+- **php [args...]**  
+  Alias for running PHP commands.
 
-- **node**
+- **artisan [args...]**  
+  Alias for running Laravel Artisan commands.
 
-  - Alias for running Node.js commands.
+- **composer [args...]**  
+  Alias for running Composer commands.
 
-- **npm**
+- **phpunit [args...]**  
+  Alias for running PHPUnit commands.
 
-  - Alias for running npm commands.
+- **dump [--key <key>]**  
+  Dump the project’s database.  
+  - `key` (optional): A unique key for the dump.
 
-- **yarn**
-
-  - Alias for running yarn commands.
-
-- **php**
-
-  - Alias for running PHP commands.
-
-- **artisan**
-
-  - Alias for running Laravel Artisan commands.
-
-- **composer**
-
-  - Alias for running Composer commands.
-
-- **phpunit**
-
-  - Alias for running PHPUnit commands.
-
-- **dump**
-
-  - Dump the project’s database.
-  - Options:
-    - `key` (optional) — A unique key for the dump.
-
-- **restore**
-  - Restore the project’s database.
-  - Options:
-    - `path` — The path to the dump file.
-
-#### Global Project Commands
-
-Commands affecting all projects in the stack:
-
-- **up**
-
-  - Start all projects.
-  - Arguments:
-    - `rest` (optional) — Additional arguments to pass to the command.
-
-- **down**
-
-  - Stop all projects.
-  - Arguments:
-    - `rest` (optional) — Additional arguments to pass to the command.
-
-- **restart**
-  - Restart all projects.
-  - Arguments:
-    - `rest` (optional) — Additional arguments to pass to the command.
+- **restore --path <path>**  
+  Restore the project’s database.  
+  - `path`: The path to the dump file.
 
 #### Fallthrough Commands
 
@@ -170,7 +192,37 @@ hbt some-custom-command arg1 arg2
    hbt app dump --key=my-database-key
    ```
 
-4. Increase verbosity for debugging:
+4. Restore a project database from a file:
+
+   ```bash
+   hbt app restore --path=./dumps/my-dump.sql
+   ```
+
+5. Create a snapshot including only specific repositories and databases:
+
+   ```bash
+   hbt snapshot create --include-repositories=api,app --include-databases=main,logs
+   ```
+
+6. Restore from a snapshot file:
+
+   ```bash
+   hbt snapshot restore --path=./snapshots/snap-2024-06-01.tar.gz
+   ```
+
+7. Checkout a branch and run migrations:
+
+   ```bash
+   hbt checkout --branch feature/new-api --migrate
+   ```
+
+8. Set a configuration value:
+
+   ```bash
+   hbt config SOME_KEY some_value
+   ```
+
+9. Increase verbosity for debugging:
 
    ```bash
    hbt -vvv app up
