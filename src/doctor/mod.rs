@@ -1,9 +1,6 @@
 mod project;
 
-use std::{
-    env::VarError,
-    path::{Path, PathBuf},
-};
+use std::{env::VarError, path::Path};
 
 use eyre::{eyre, WrapErr};
 use strum::IntoEnumIterator;
@@ -12,8 +9,7 @@ use crate::{
     context::AppContext,
     env::get_hbt_root,
     project::Project,
-    types::Outcome,
-    ui::{components::LabeledLine, traits::Draw, BrushContext},
+    ui::{components::LabeledLine, BrushContext},
     utils::which,
 };
 
