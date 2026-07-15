@@ -5,5 +5,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
+    // The PDF E2E files each run a real `pnpm build` in beforeAll to produce
+    // dist/ + the manifest. Disable file-level parallelism so those builds
+    // never write to dist/ at the same time.
+    fileParallelism: false,
   },
 });

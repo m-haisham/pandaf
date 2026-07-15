@@ -3,6 +3,7 @@ import { node } from "@elysiajs/node";
 import path from "node:path";
 import { readFileSync } from "node:fs";
 import { createPdfKit, inlineCssAssets } from "@hshm/vuedo";
+import { swagger } from "@elysiajs/swagger";
 import type { PdfTemplateProps } from "./generated/pdf-templates";
 
 // This root package is a *consumer* of @hshm/vuedo — an ordinary Elysia
@@ -41,25 +42,70 @@ export const vuedo = createPdfKit<PdfTemplateProps>({
 const optionsSchema = t.Object({
   marginTop: t.Optional(t.Number()),
   marginBottom: t.Optional(t.Number()),
+  marginLeft: t.Optional(t.Number()),
+  marginRight: t.Optional(t.Number()),
 });
 
 const invoiceSchema = t.Object({
-  header: t.Object({ id: t.String(), customerName: t.String() }),
-  body: t.Object({ id: t.String(), customerName: t.String() }),
-  footer: t.Object({ id: t.String(), customerName: t.String() }),
+  header: t.Object({
+    companyName: t.String(),
+    companyEmail: t.String(),
+    invoiceNumber: t.String(),
+    issueDate: t.String(),
+    dueDate: t.String(),
+  }),
+  body: t.Object({
+    billTo: t.Object({
+      name: t.String(),
+      company: t.Optional(t.String()),
+      address: t.String(),
+    }),
+    items: t.Array(
+      t.Object({
+        description: t.String(),
+        qty: t.Number(),
+        unitPrice: t.Number(),
+      }),
+    ),
+    taxRate: t.Number(),
+    notes: t.Optional(t.String()),
+  }),
+  footer: t.Object({
+    thankYou: t.String(),
+    contactEmail: t.String(),
+    website: t.String(),
+  }),
   options: t.Optional(optionsSchema),
 });
 
 const posOrderSchema = t.Object({
-  header: t.Object({ store: t.String() }),
-  body: t.Object({ orderId: t.String(), total: t.Number() }),
+  header: t.Object({
+    store: t.String(),
+    address: t.String(),
+    orderNumber: t.String(),
+    date: t.String(),
+    cashier: t.String(),
+  }),
+  body: t.Object({
+    items: t.Array(
+      t.Object({
+        name: t.String(),
+        qty: t.Number(),
+        price: t.Number(),
+      }),
+    ),
+    tax: t.Number(),
+    total: t.Number(),
+    paymentMethod: t.String(),
+  }),
+  footer: t.Object({
+    thankYou: t.String(),
+    returnPolicy: t.String(),
+  }),
   options: t.Optional(optionsSchema),
 });
 
-function pdfResponse(
-  stream: ReadableStream,
-  filename: string,
-): Response {
+function pdfResponse(stream: ReadableStream, filename: string): Response {
   return new Response(stream, {
     headers: {
       "Content-Type": "application/pdf",
@@ -68,68 +114,47 @@ function pdfResponse(
   });
 }
 
-// Browser-friendly landing page: each template is its own typed POST route, so
-// navigating directly to /invoice (a GET) would 404. This GET / page posts
-// sample payloads via fetch so the PDF / preview can be triggered from a browser.
-const SAMPLE_PAYLOADS: Record<string, unknown> = {
-  invoice: {
-    header: { id: "INV-1", customerName: "Acme Corp" },
-    body: { id: "INV-1", customerName: "Acme Corp" },
-    footer: { id: "INV-1", customerName: "Acme Corp" },
-    options: {},
-  },
-  "pos-order": {
-    header: { store: "Downtown" },
-    body: { orderId: "ORD-9", total: 42 },
-    options: {},
-  },
-};
-
-function landingPage(): string {
-  const cards = Object.keys(SAMPLE_PAYLOADS)
-    .map((name) => {
-      const sample = JSON.stringify(SAMPLE_PAYLOADS[name], null, 2);
-      return `
-      <div class="card">
-        <h2>POST /${name}</h2>
-        <textarea id="ta-${name}" rows="9">${sample}</textarea>
-        <div class="row">
-          <button onclick="gen('${name}', false)">Generate PDF</button>
-          <button onclick="gen('${name}', true)">Preview HTML</button>
-        </div>
-        <iframe id="out-${name}"></iframe>
-      </div>`;
-    })
-    .join("");
-
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>vuedo</title>
-  <style>body{font-family:sans-serif;margin:2rem;color:#111}
-  .card{border:1px solid #ddd;border-radius:8px;padding:1rem;margin-bottom:1.5rem;max-width:720px}
-  textarea{width:100%;font-family:monospace;box-sizing:border-box}
-  .row{margin:.6rem 0} button{margin-right:.5rem;padding:.4rem .8rem}
-  iframe{width:100%;height:420px;border:1px solid #eee;border-radius:6px}</style>
-  </head><body>
-  <h1>vuedo</h1>
-  <p>Each template is its own typed <code>POST</code> route with TypeBox validation.
-     Edit the sample payload, then generate a PDF or preview the composed SSR HTML.</p>
-  ${cards}
-  <script>
-    async function gen(name, preview) {
-      const ta = document.getElementById('ta-' + name);
-      let payload;
-      try { payload = JSON.parse(ta.value); } catch (e) { alert('Invalid JSON: ' + e.message); return; }
-      const res = await fetch('/' + name + (preview ? '?preview=html' : ''), {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
-      });
-      const out = document.getElementById('out-' + name);
-      if (preview) { out.srcdoc = await res.text(); }
-      else { out.src = URL.createObjectURL(await res.blob()); }
-    }
-  </script>
-  </body></html>`;
-}
-
 export const app = new Elysia({ adapter: node() })
+  .use(
+    swagger({
+      path: "/docs",
+      specPath: "/openapi.json",
+      documentation: {
+        info: {
+          title: "vuedo PDF Service",
+          version: "1.0.0",
+          description:
+            "A small example consumer of `@hshm/vuedo` that turns Vue + " +
+            "Tailwind templates into PDFs via Gotenberg. Each PDF is its own " +
+            "typed route. Send the `{ header?, body, footer?, options }` " +
+            "payload as JSON; add `?preview=html` to get the composed SSR " +
+            "HTML instead of a PDF.",
+        },
+        servers: [
+          { url: "http://localhost:8080", description: "Local dev server" },
+        ],
+        tags: [
+          {
+            name: "PDF Templates",
+            description: "Generate or preview a PDF from a Vue template.",
+          },
+          {
+            name: "API Reference",
+            description: "Service metadata endpoints.",
+          },
+        ],
+      },
+      scalarConfig: {
+        spec: { url: "/openapi.json" },
+        theme: "default",
+        metaData: {
+          title: "vuedo PDF Service",
+          description:
+            "Generate and preview PDFs from Vue + Tailwind templates.",
+        },
+      },
+    }),
+  )
   .post(
     "/invoice",
     async ({ body, query }) => {
@@ -141,7 +166,19 @@ export const app = new Elysia({ adapter: node() })
       }
       return pdfResponse(await vuedo.generatePdf("invoice", body), "invoice");
     },
-    { body: invoiceSchema },
+    {
+      body: invoiceSchema,
+      query: t.Object({
+        preview: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ["PDF Templates"],
+        summary: "Generate an invoice PDF",
+        description:
+          "Renders the invoice template (header + body + footer) into a PDF. " +
+          "Append `?preview=html` to receive the composed SSR HTML instead.",
+      },
+    },
   )
   .post(
     "/pos-order",
@@ -154,14 +191,27 @@ export const app = new Elysia({ adapter: node() })
       }
       return pdfResponse(
         await vuedo.generatePdf("pos.pos-order", body),
-        "pos.pos-order",
+        "pos-order",
       );
     },
-    { body: posOrderSchema },
+    {
+      body: posOrderSchema,
+      query: t.Object({
+        preview: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ["PDF Templates"],
+        summary: "Generate a POS receipt PDF",
+        description:
+          "Renders the POS receipt template (header + body + footer) into a PDF. " +
+          "Append `?preview=html` to receive the composed SSR HTML instead.",
+      },
+    },
   )
   .get("/", () => {
-    return new Response(landingPage(), {
-      headers: { "Content-Type": "text/html" },
+    return new Response(null, {
+      status: 302,
+      headers: { location: "/docs" },
     });
   })
   .listen(8080);

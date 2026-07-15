@@ -1,12 +1,28 @@
 <template>
-  <div
-    class="vuedo-header text-sm text-gray-500 border-b border-gray-200 pb-2 mb-4 flex justify-between"
+  <header
+    class="invoice-header bg-slate-900 text-white px-10 py-6 flex items-start justify-between"
   >
-    <span class="font-semibold">vuedo inc.</span>
-    <span>Invoice {{ id }}</span>
-  </div>
+    <div>
+      <div class="text-2xl font-bold tracking-tight">{{ companyName }}</div>
+      <div class="text-slate-300 text-sm mt-1">{{ companyEmail }}</div>
+    </div>
+    <div class="text-right">
+      <div class="text-xs uppercase tracking-[0.3em] text-slate-400">
+        Invoice
+      </div>
+      <div class="text-xl font-semibold mt-0.5">{{ invoiceNumber }}</div>
+      <div class="text-slate-300 text-sm mt-1">Issued {{ issueDate }}</div>
+      <div class="text-slate-300 text-sm">Due {{ dueDate }}</div>
+    </div>
+  </header>
 </template>
 
 <script setup lang="ts">
-defineProps<{ id: string; customerName: string }>();
+defineProps<{
+  companyName: string;
+  companyEmail: string;
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate: string;
+}>();
 </script>

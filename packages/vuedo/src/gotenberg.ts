@@ -4,6 +4,8 @@ export interface GotenbergInput {
   footer?: string;
   marginTop?: number;
   marginBottom?: number;
+  marginLeft?: number;
+  marginRight?: number;
 }
 
 // Minimal Gotenberg HTTP client: posts the (already asset-inlined) HTML plus
@@ -35,6 +37,10 @@ export async function sendToGotenberg(
   }
   form.append("marginTop", String(input.marginTop ?? 0.4));
   form.append("marginBottom", String(input.marginBottom ?? 0.4));
+  if (input.marginLeft !== undefined)
+    form.append("marginLeft", String(input.marginLeft));
+  if (input.marginRight !== undefined)
+    form.append("marginRight", String(input.marginRight));
 
   const res = await fetch(`${baseUrl}/forms/chromium/convert/html`, {
     method: "POST",

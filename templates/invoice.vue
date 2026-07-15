@@ -1,11 +1,85 @@
 <template>
-  <div class="p-10 font-sans bg-white text-gray-900">
-    <img src="../assets/logo.png" class="w-32 mb-8" />
-    <h1 class="text-4xl font-bold">Invoice #{{ id }}</h1>
-    <p>Billed to: {{ customerName }}</p>
-  </div>
+  <section class="invoice-body px-10 py-8 text-slate-800">
+    <div class="mb-8">
+      <div class="text-xs uppercase tracking-widest text-slate-400 mb-1">
+        Billed to
+      </div>
+      <div class="text-lg font-semibold">{{ billTo.name }}</div>
+      <div v-if="billTo.company" class="text-slate-600">
+        {{ billTo.company }}
+      </div>
+      <div class="text-slate-600 whitespace-pre-line">{{ billTo.address }}</div>
+    </div>
+
+    <table class="w-full text-sm border-collapse">
+      <thead>
+        <tr
+          class="border-b-2 border-slate-900 text-left text-slate-500 uppercase text-xs tracking-wider"
+        >
+          <th class="py-2 font-medium">Description</th>
+          <th class="py-2 text-right font-medium">Qty</th>
+          <th class="py-2 text-right font-medium">Unit</th>
+          <th class="py-2 text-right font-medium">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          v-for="(item, i) in items"
+          :key="i"
+          class="border-b border-slate-200"
+        >
+          <td class="py-2">{{ item.description }}</td>
+          <td class="py-2 text-right tabular-nums">{{ item.qty }}</td>
+          <td class="py-2 text-right tabular-nums">
+            {{ formatMoney(item.unitPrice) }}
+          </td>
+          <td class="py-2 text-right tabular-nums">
+            {{ formatMoney(item.unitPrice * item.qty) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="flex justify-end mt-6">
+      <div class="w-64 text-sm">
+        <div class="flex justify-between py-1 text-slate-600">
+          <span>Subtotal</span>
+          <span class="tabular-nums">{{ formatMoney(subtotal) }}</span>
+        </div>
+        <div class="flex justify-between py-1 text-slate-600">
+          <span>Tax ({{ Math.round(taxRate * 100) }}%)</span>
+          <span class="tabular-nums">{{ formatMoney(subtotal * taxRate) }}</span>
+        </div>
+        <div
+          class="flex justify-between py-2 mt-1 border-t-2 border-slate-900 font-bold text-lg"
+        >
+          <span>Total</span>
+          <span class="tabular-nums">
+            {{ formatMoney(subtotal * (1 + taxRate)) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <p v-if="notes" class="mt-8 text-xs text-slate-400 italic">{{ notes }}</p>
+  </section>
 </template>
 
 <script setup lang="ts">
-defineProps<{ id: string; customerName: string }>();
+import { computed } from "vue";
+
+const props = defineProps<{
+  billTo: { name: string; company?: string; address: string };
+  items: { description: string; qty: number; unitPrice: number }[];
+  taxRate: number;
+  notes?: string;
+}>();
+
+const subtotal = computed(() =>
+  props.items.reduce((sum, item) => sum + item.unitPrice * item.qty, 0),
+);
+
+function formatMoney(amount: number): string {
+  return "$" + amount.toFixed(2);
+}
 </script>
