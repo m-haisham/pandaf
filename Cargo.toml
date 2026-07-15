@@ -4,6 +4,7 @@ description = "A command-line tool for interacting with the Hummingbird developm
 version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/humtravel/hbt-cli"
+homepage = "https://github.com/humtravel/hbt-cli"
 
 [dependencies]
 axoupdater = "0.9.0"
