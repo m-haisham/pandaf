@@ -33,6 +33,7 @@ pub async fn start_work(context: AppContext) -> eyre::Result<()> {
     brush.heading("Branches:")?;
     print_branches(&context).await?;
 
+    brush.write_newline()?;
     check_working_branch(&brush, &git_infos).await?;
 
     Ok(())
@@ -42,8 +43,7 @@ pub async fn check_working_branch(
     brush: &BrushContext<'_>,
     git_infos: &BTreeMap<Repository, GitInfo>,
 ) -> eyre::Result<()> {
-    brush.write_newline()?;
-    brush.heading("Checking working branch...")?;
+    tracing::info!("Checking for working branch...");
 
     let grouped = git_infos
         .iter()
@@ -60,24 +60,23 @@ pub async fn check_working_branch(
 
     match feature_branches.len() {
         0 => {
-            brush.write_line("No feature branches found.")?;
+            brush.write_warning("Not working on any features.")?;
         }
         1 => {
-            brush.write_line("Found feature branch:")?;
-            brush.indented(|brush| {
-                brush.write_line(feature_branches[0])?;
-                Ok::<_, eyre::Report>(())
-            })?;
+            let message = format!(
+                "Working on: {}",
+                brush.styles.bold.apply_to(feature_branches[0])
+            );
+            brush.write_line(&message)?;
         }
         _ => {
-            brush.write_warning("Multiple feature branches found:")?;
+            brush.write_warning("You have multiple feature branches:")?;
             brush.indented(|brush| {
                 for branch in feature_branches {
                     brush.write_warning(branch)?;
                 }
                 Ok::<_, eyre::Report>(())
             })?;
-            brush.write_newline()?;
             brush.write_warning(
                 "Consider cleaning up your feature branches to avoid conflicting behaviour.",
             )?;
