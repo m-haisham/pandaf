@@ -1,6 +1,6 @@
 use std::{env::VarError, path::Path};
 
-use crate::ui::{components::LabeledLine, BrushContext};
+use crate::ui::{components::LabeledLine, traits::Draw, BrushContext};
 
 pub struct HealthEnvironment {
     pub hbt_root: EnvDirHealth,
@@ -8,13 +8,17 @@ pub struct HealthEnvironment {
     pub path: Option<String>,
 }
 
-impl HealthEnvironment {
-    pub fn draw(&self, brush: &BrushContext<'_>) -> eyre::Result<()> {
+impl Draw for HealthEnvironment {
+    fn draw_compact(&self, brush: &BrushContext<'_>) -> eyre::Result<()> {
         brush.heading("Environment")?;
         brush.draw(&self.hbt_root.as_line())?;
         brush.draw(&self.hbt_docker_root.as_line())?;
         brush.labeled("PATH", self.path.as_deref().unwrap_or("Not set"))?;
         Ok(())
+    }
+
+    fn draw_verbose(&self, brush: &BrushContext<'_>) -> eyre::Result<()> {
+        self.draw_compact(brush)
     }
 }
 
