@@ -1,7 +1,7 @@
 use config::{builder::DefaultState, Environment};
 use eyre::{eyre, WrapErr};
 use serde::de::DeserializeOwned;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[tracing::instrument(skip_all)]
 pub async fn read_env<T>(path: &Path) -> eyre::Result<T>
@@ -30,4 +30,12 @@ where
         .wrap_err("Could not deserialize environment")?;
 
     Ok(env)
+}
+
+pub fn get_hbt_root() -> eyre::Result<PathBuf> {
+    let hbt_root = std::env::var("HBT_ROOT")
+        .map_err(|e| eyre!(e))
+        .wrap_err("HBT_ROOT not set")?;
+
+    Ok(PathBuf::from(hbt_root))
 }

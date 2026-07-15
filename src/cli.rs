@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 
+use crate::kebab::Kebab;
+
 /// A command-line tool for interacting with the Hummingbird development stack.
 ///
 /// This tool is designed to be used in conjunction with the Hummingbird development stack.
@@ -19,6 +21,10 @@ pub struct Cli {
     #[clap(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
 
+    /// Run the command in non-interactive mode (dangerous).
+    #[clap(short, long)]
+    pub non_interactive: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -28,7 +34,7 @@ pub enum Commands {
     /// Check your configuration for potential issues
     Doctor,
     /// Dump the mysql databases
-    Dump,
+    Dump { key: Kebab },
     /// Run a command for all projects
     Global {
         #[command(subcommand)]

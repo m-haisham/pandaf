@@ -1,4 +1,5 @@
 mod cli;
+mod compress;
 mod docker;
 mod doctor;
 mod env;
@@ -7,17 +8,19 @@ mod global;
 mod infra;
 mod kebab;
 mod project;
-mod zip;
 
-use std::path::PathBuf;
+use std::{fs::File, io::BufWriter, path::PathBuf};
 
 use clap::Parser;
 use cli::{Cli, Commands, GlobalCommands};
+use dialoguer::{theme::ColorfulTheme, Confirm};
+use env::get_hbt_root;
 use eyre::{eyre, Context};
 use git::current_branch;
 use infra::set_current_infra;
 use kebab::kebabify;
 use project::{dir_name_to_project, set_current_project, Project, ProjectCommands};
+use strum::IntoEnumIterator;
 use tracing::level_filters::LevelFilter;
 
 #[tokio::main]
@@ -25,10 +28,9 @@ pub async fn main() -> eyre::Result<()> {
     let cli = Cli::parse();
 
     let level = match cli.verbose {
-        0 => LevelFilter::ERROR,
-        1 => LevelFilter::WARN,
-        2 => LevelFilter::INFO,
-        3 => LevelFilter::DEBUG,
+        0 => LevelFilter::WARN,
+        1 => LevelFilter::INFO,
+        2 => LevelFilter::DEBUG,
         _ => LevelFilter::TRACE,
     };
 
@@ -42,7 +44,63 @@ pub async fn main() -> eyre::Result<()> {
             let health = doctor::check_health().await?;
             println!("{}", health);
         }
-        Commands::Dump => {}
+        Commands::Dump { key } => {
+            let infra_env = infra::get_infra_env().await?;
+            set_current_infra()?;
+
+            let dump_dir = get_hbt_root()?.join("dumps").join(key.as_ref());
+            if dump_dir.exists() {
+                if cli.non_interactive {
+                    let confirm = Confirm::with_theme(&ColorfulTheme::default())
+                        .with_prompt(format!(
+                            "Dump directory {} already exists. Overwrite?",
+                            dump_dir.display()
+                        ))
+                        .interact()
+                        .map_err(|e| eyre!(e))
+                        .wrap_err("Failed to prompt for confirmation")?;
+
+                    if !confirm {
+                        eyre::bail!("User declined to overwrite dump directory");
+                    }
+                }
+
+                tracing::info!("Removing existing dump directory...");
+
+                std::fs::remove_dir_all(&dump_dir)
+                    .map_err(|e| eyre!(e))
+                    .wrap_err("Failed to remove existing dump directory")?;
+            }
+
+            std::fs::create_dir_all(&dump_dir)
+                .map_err(|e| eyre!(e))
+                .wrap_err("Failed to create dump directory")?;
+
+            for project in Project::iter() {
+                if let Err(e) = project::dump_project_db(&project, &infra_env, &dump_dir)
+                    .await
+                    .wrap_err("Failed to dump project")
+                {
+                    tracing::error!("{:?}", e);
+                }
+            }
+
+            tracing::info!("Dumps written to {}", dump_dir.display());
+
+            let dump_zip_path = get_hbt_root()?
+                .join("dumps")
+                .join(format!("{}.zip", key.as_ref()));
+
+            let dump_zip_file = BufWriter::new(
+                File::create(&dump_zip_path)
+                    .map_err(|e| eyre!(e))
+                    .wrap_err("Failed to create zip file")?,
+            );
+
+            compress::zip_dir(dump_zip_file, &dump_dir).await?;
+
+            tracing::info!("Zipped dumps to {}", dump_zip_path.display());
+        }
         Commands::Global { command } => match command {
             GlobalCommands::Up { rest } => {
                 global::start_all_projects(&rest).await?;
@@ -164,7 +222,7 @@ async fn project_command(project: Project, command: ProjectCommands) -> eyre::Re
             let dump = docker::mysql_dump(project.name(), &infra_env.mysql_db_password).await?;
             tracing::info!("Dumped {} bytes", dump.len());
 
-            let dump = zip::gzip(&dump).await?;
+            let dump = compress::gzip(&dump).await?;
             tracing::info!("Compressed dump to {} bytes", dump.len());
 
             std::fs::write(&dump_file, dump)
@@ -183,7 +241,7 @@ async fn project_command(project: Project, command: ProjectCommands) -> eyre::Re
 
             tracing::info!("Read dump from file {} bytes", dump.len());
 
-            let dump = zip::gunzip(&dump).await?;
+            let dump = compress::gunzip(&dump).await?;
             tracing::info!("Decompressed dump to {} bytes", dump.len());
 
             docker::mysql_restore(

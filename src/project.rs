@@ -1,12 +1,13 @@
 use clap::Parser;
 use eyre::{eyre, WrapErr};
+use serde::Deserialize;
 use std::{
     env::set_current_dir,
     path::{Path, PathBuf},
 };
 use strum::EnumIter;
 
-use crate::kebab::Kebab;
+use crate::{compress, docker, env::get_hbt_root, infra::InfraEnv, kebab::Kebab};
 
 #[derive(Debug, EnumIter)]
 pub enum Project {
@@ -39,6 +40,22 @@ impl Project {
             Project::Nest => "nest",
         }
     }
+
+    pub fn dir_name(&self) -> &str {
+        match self {
+            Project::Traefik => "traefik",
+            Project::Infra => "infra",
+            Project::Gateway => "gateway-app",
+            Project::Rates => "rates",
+            Project::Search => "search",
+            Project::Operations => "operations",
+            Project::Foundation => "foundation",
+            Project::Products => "products",
+            Project::ApiGateway => "apigateway",
+            Project::App => "hummingbird-app",
+            Project::Nest => "nest-app",
+        }
+    }
 }
 
 pub async fn set_current_project(project: &Project) -> eyre::Result<()> {
@@ -57,6 +74,7 @@ pub async fn set_current_project(project: &Project) -> eyre::Result<()> {
     Ok(())
 }
 
+#[tracing::instrument]
 pub fn detect_project() -> eyre::Result<Option<Project>> {
     let current_dir = std::env::current_dir()
         .map_err(|e| eyre!(e))
@@ -138,4 +156,66 @@ pub enum ProjectCommands {
         /// The path to the dump file
         path: PathBuf,
     },
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ProjectEnv {
+    pub db_database: String,
+}
+
+#[tracing::instrument]
+pub async fn read_project_env(project: &Project) -> eyre::Result<Option<ProjectEnv>> {
+    tracing::info!("Reading environment for project: {}", project.name());
+
+    let hbt_root = get_hbt_root()?;
+    let env_path = hbt_root.join(project.dir_name()).join(".env");
+
+    if !env_path.exists() {
+        return Ok(None);
+    }
+
+    let env = crate::env::read_env(&env_path).await?;
+
+    Ok(Some(env))
+}
+
+#[tracing::instrument(skip(infra_env, dump_dir))]
+pub async fn dump_project_db(
+    project: &Project,
+    infra_env: &InfraEnv,
+    dump_dir: &Path,
+) -> eyre::Result<()> {
+    tracing::info!("Dumping {}...", project.name());
+
+    let project_env = read_project_env(&project).await?;
+    let Some(project_env) = project_env else {
+        return Err(eyre!("No environment found for {}", project.name()));
+    };
+
+    let dump_file = dump_dir.join(format!("{}.sql.gz", project.dir_name()));
+
+    let dump =
+        match docker::mysql_dump(&project_env.db_database, &infra_env.mysql_db_password).await {
+            Ok(dump) => dump,
+            Err(e) => {
+                return Err(eyre!(
+                    "Failed to dump database for {}: {}",
+                    project.name(),
+                    e
+                ));
+            }
+        };
+
+    tracing::info!("Dumped {} bytes", dump.len());
+
+    let dump = compress::gzip(&dump).await?;
+    tracing::info!("Compressed dump to {} bytes", dump.len());
+
+    std::fs::write(&dump_file, dump)
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to write dump to file")?;
+
+    tracing::info!("Wrote dump to file {}", dump_file.display());
+
+    Ok(())
 }

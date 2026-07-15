@@ -9,6 +9,12 @@ impl Kebab {
     }
 }
 
+impl AsRef<str> for Kebab {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
 impl Deref for Kebab {
     type Target = str;
 
