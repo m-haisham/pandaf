@@ -1,15 +1,10 @@
-use std::collections::BTreeMap;
-
 use color_eyre::Section;
 use eyre::eyre;
-use itertools::Itertools;
-use strum::IntoEnumIterator;
 
 use crate::{
     context::AppContext,
     docker::ping_docker,
-    env::get_hbt_root,
-    git::{self, GitInfo, Repository},
+    git::{GitRepoList, WorkingBranch},
     ui::BrushContext,
 };
 
@@ -27,53 +22,37 @@ pub async fn start_work(context: AppContext) -> eyre::Result<()> {
     brush.heading("Starting project containers...")?;
     start_all_projects(&[]).await?;
 
-    let git_infos = get_repository_git_infos(&context).await?;
+    let repo_list = GitRepoList::new(&context.working_dir).await?;
 
     brush.write_newline()?;
     brush.heading("Branches:")?;
     print_branches(&context).await?;
 
     brush.write_newline()?;
-    check_working_branch(&brush, &git_infos).await?;
+    check_working_branch(&brush, &repo_list).await?;
 
     Ok(())
 }
 
 pub async fn check_working_branch(
     brush: &BrushContext<'_>,
-    git_infos: &BTreeMap<Repository, GitInfo>,
+    repo_list: &GitRepoList,
 ) -> eyre::Result<()> {
-    tracing::info!("Checking for working branch...");
+    let working_branch = repo_list.get_working_branch();
 
-    let grouped = git_infos
-        .iter()
-        .chunk_by(|(_, git_info)| git_info.branch.clone())
-        .into_iter()
-        .map(|(branch, i)| (branch, i.collect()))
-        .collect::<BTreeMap<String, Vec<(&Repository, &GitInfo)>>>();
-
-    let main_branches = ["main", "master", "develop"];
-    let feature_branches = grouped
-        .keys()
-        .filter(|branch| !main_branches.contains(&branch.as_str()))
-        .collect::<Vec<&String>>();
-
-    match feature_branches.len() {
-        0 => {
-            brush.write_warning("Not working on any features.")?;
+    match working_branch {
+        WorkingBranch::None => {
+            brush.write_warning("Not working on any feature.")?;
         }
-        1 => {
-            let message = format!(
-                "Working on: {}",
-                brush.styles.bold.apply_to(feature_branches[0])
-            );
+        WorkingBranch::Single(branch) => {
+            let message = format!("Working on: {}", brush.styles.bold.apply_to(branch));
             brush.write_line(&message)?;
         }
-        _ => {
+        WorkingBranch::Multiple(branches) => {
             brush.write_warning("You have multiple feature branches:")?;
             brush.indented(|brush| {
-                for branch in feature_branches {
-                    brush.write_warning(branch)?;
+                for branch in branches {
+                    brush.write_warning(&branch)?;
                 }
                 Ok::<_, eyre::Report>(())
             })?;
@@ -84,24 +63,4 @@ pub async fn check_working_branch(
     }
 
     Ok(())
-}
-
-pub async fn get_repository_git_infos(
-    context: &AppContext,
-) -> eyre::Result<BTreeMap<Repository, GitInfo>> {
-    let mut git_infos = BTreeMap::new();
-
-    for repository in Repository::iter() {
-        let hbt_root = get_hbt_root()?;
-        let repository_dir = hbt_root.join(repository.dir_name());
-
-        let git_info = context
-            .working_dir
-            .with_working_dir(&repository_dir, async |_| git::git_info().await)
-            .await?;
-
-        git_infos.insert(repository, git_info);
-    }
-
-    Ok(git_infos)
 }

@@ -1,11 +1,18 @@
 use std::{
+    collections::BTreeMap,
     fmt::{self, Display},
     path::Path,
 };
 
 use eyre::{eyre, Context};
-use strum::EnumIter;
+use itertools::Itertools;
+use strum::{EnumIter, IntoEnumIterator};
 use tokio::process::Command;
+
+use crate::{
+    context::{AppContext, WorkingDir},
+    env,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
 pub enum Repository {
@@ -326,4 +333,57 @@ pub async fn git_info() -> eyre::Result<GitInfo> {
         origin,
         changes,
     })
+}
+
+#[derive(Debug)]
+pub struct GitRepoList {
+    map: BTreeMap<Repository, GitInfo>,
+}
+
+#[derive(Debug)]
+pub enum WorkingBranch {
+    None,
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+impl GitRepoList {
+    pub async fn new(working_dir: &WorkingDir) -> eyre::Result<Self> {
+        let mut map = BTreeMap::new();
+
+        for repository in Repository::iter() {
+            let hbt_root = env::get_hbt_root()?;
+            let repository_dir = hbt_root.join(repository.dir_name());
+
+            let git_info = working_dir
+                .with_working_dir(&repository_dir, async |_| git_info().await)
+                .await?;
+
+            map.insert(repository, git_info);
+        }
+
+        Ok(Self { map })
+    }
+
+    pub fn get_working_branch(&self) -> WorkingBranch {
+        let grouped = self
+            .map
+            .iter()
+            .chunk_by(|(_, git_info)| git_info.branch.clone())
+            .into_iter()
+            .map(|(branch, i)| (branch, i.collect()))
+            .collect::<BTreeMap<String, Vec<(&Repository, &GitInfo)>>>();
+
+        let main_branches = ["main", "master", "develop"];
+        let feature_branches = grouped
+            .keys()
+            .filter(|branch| !main_branches.contains(&branch.as_str()))
+            .collect::<Vec<_>>();
+
+        match feature_branches.len() {
+            0 => WorkingBranch::None,
+            1 => WorkingBranch::Single(feature_branches[0].clone()),
+            _ => WorkingBranch::Multiple(feature_branches.into_iter().cloned().collect_vec()),
+        }
+    }
 }
