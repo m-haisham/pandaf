@@ -35,6 +35,11 @@ pub async fn checkout(
     };
 
     let draw = DrawContext::new_from_context(&context);
+    let branch_output = format!("'{branch}'");
+    draw.write_line(&format!(
+        "Checking out branch: {} (fallback to 'develop')",
+        branch_output.bold()
+    ))?;
 
     for project in Project::iter() {
         let Some(dir_name) = project.dir_name() else {
