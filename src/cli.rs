@@ -40,6 +40,8 @@ pub enum Commands {
     Restore { key: Kebab },
     /// Set up the development environment
     Setup,
+    /// List current branches across all projects
+    Branch,
     /// Checkout a branch across all projects
     Checkout {
         /// The branch to check out, defaults to branch in current project

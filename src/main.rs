@@ -191,6 +191,9 @@ pub async fn main() -> eyre::Result<()> {
                 db::restore(&project_db, &dump_file).await?;
             }
         }
+        Commands::Branch => {
+            commands::print_branches(context).await?;
+        }
         Commands::Checkout { branch, migrate } => {
             commands::checkout(context, branch, migrate).await?
         }

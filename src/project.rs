@@ -156,7 +156,7 @@ pub fn detect_project() -> eyre::Result<Option<Project>> {
         tracing::info!("Checking directory for project: {}", dir.display());
 
         let Some(dir_name) = dir.file_name() else {
-            tracing::warn!("Directory does not have a valid name: {}", dir.display());
+            tracing::debug!("Directory does not have a valid name: {}", dir.display());
             break;
         };
 
