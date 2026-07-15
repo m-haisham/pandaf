@@ -7,7 +7,7 @@ use eyre::{eyre, Context};
 use strum::EnumIter;
 use tokio::process::Command;
 
-#[derive(Clone, Debug, PartialEq, Eq, EnumIter)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
 pub enum Repository {
     Gateway,
     Rates,
@@ -304,4 +304,26 @@ pub async fn git_changes() -> eyre::Result<Vec<GitChange>> {
         .collect::<eyre::Result<Vec<GitChange>>>()?;
 
     Ok(changes)
+}
+
+#[derive(Debug)]
+pub struct GitInfo {
+    pub branch: String,
+    pub commit: GitCommit,
+    pub origin: String,
+    pub changes: Vec<GitChange>,
+}
+
+pub async fn git_info() -> eyre::Result<GitInfo> {
+    let branch = current_branch().await?;
+    let commit = current_commit().await?;
+    let origin = current_origin().await?;
+    let changes = git_changes().await?;
+
+    Ok(GitInfo {
+        branch,
+        commit,
+        origin,
+        changes,
+    })
 }

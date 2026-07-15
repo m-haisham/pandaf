@@ -3,7 +3,10 @@ use directories::ProjectDirs;
 use eyre::{eyre, Context};
 
 use crate::config::{read_config, Config};
-use std::{fs::create_dir_all, path::PathBuf};
+use std::{
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug)]
 pub struct AppContext {
@@ -78,6 +81,31 @@ impl WorkingDir {
         self.path = path;
 
         Ok(())
+    }
+
+    pub async fn with_working_dir<F, R>(&self, working_dir: &Path, f: F) -> eyre::Result<R>
+    where
+        F: AsyncFnOnce(&Path) -> eyre::Result<R>,
+    {
+        let parent_path = std::env::current_dir()?;
+        std::env::set_current_dir(working_dir)
+            .map_err(|e| eyre!(e))
+            .wrap_err_with(|| {
+                format!("Failed to change directory to: {}", working_dir.display())
+            })?;
+
+        let result = f(working_dir).await;
+
+        std::env::set_current_dir(&parent_path)
+            .map_err(|e| eyre!(e))
+            .wrap_err_with(|| {
+                format!(
+                    "Failed to change directory back to: {}",
+                    parent_path.display()
+                )
+            })?;
+
+        result
     }
 
     pub fn get_path(&self) -> &PathBuf {
