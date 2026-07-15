@@ -1,3 +1,5 @@
+use std::env::set_current_dir;
+
 use eyre::{eyre, WrapErr};
 use serde::Deserialize;
 use strum::IntoEnumIterator;
@@ -21,8 +23,16 @@ pub async fn checkout(branch: Option<String>, migrate: bool) -> eyre::Result<()>
     };
 
     for project in Project::iter() {
-        set_current_project(&project)
-            .await
+        let Some(project_dir) = project.dir_name() else {
+            tracing::debug!(
+                "Skipping {} because it has no defined directory",
+                project.name()
+            );
+
+            continue;
+        };
+
+        set_current_dir(project_dir)
             .map_err(|e| eyre!(e))
             .wrap_err("Failed to set current project")?;
 
