@@ -17,6 +17,10 @@ pub async fn setup() -> eyre::Result<()> {
 
     if hbt_root.is_none() || hbt_docker_root.is_none() {
         setup_env_vars(hbt_root, hbt_docker_root).await?;
+    } else {
+        tracing::info!(
+            "Skipping environment setup as HBT_ROOT and HBT_DOCKER_ROOT are already set"
+        );
     }
 
     Ok(())
