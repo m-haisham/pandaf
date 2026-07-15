@@ -38,7 +38,7 @@ pub enum Commands {
     /// Restore mysql databases
     Restore { key: Kebab },
     /// Run a command for all projects
-    Global {
+    All {
         #[command(subcommand)]
         command: GlobalCommands,
     },

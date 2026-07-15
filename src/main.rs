@@ -173,7 +173,7 @@ pub async fn main() -> eyre::Result<()> {
                 db::restore(&project_db, &dump_file).await?;
             }
         }
-        Commands::Global { command } => match command {
+        Commands::All { command } => match command {
             GlobalCommands::Up { rest } => {
                 global::start_all_projects(&rest).await?;
             }
