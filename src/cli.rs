@@ -55,6 +55,17 @@ pub enum Commands {
         #[command(subcommand)]
         command: GlobalCommands,
     },
+    /// Set or get a configuration value
+    ///
+    /// If no key is provided, all configuration values will be displayed.
+    /// If no value is provided, the current value of the key will be displayed.
+    /// If both a key and a value are provided, the key will be set to the value.
+    Config {
+        /// The key to set
+        key: Option<String>,
+        /// The value to set the key to
+        value: Option<String>,
+    },
     /// Run a command for traefik
     Traefik {
         #[command(subcommand)]

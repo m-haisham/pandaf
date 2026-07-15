@@ -23,6 +23,7 @@ use std::{
 
 use clap::Parser;
 use cli::{Cli, Commands, GlobalCommands, ProjectCommands};
+use commands::{get_config, print_config, set_config};
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use env::get_hbt_root;
 use eyre::{eyre, Context};
@@ -48,6 +49,7 @@ pub async fn main() -> eyre::Result<()> {
         .compact()
         .init();
 
+    #[cfg(not(debug_assertions))]
     update::update_prompt(cli.non_interactive).await?;
 
     match cli.command {
@@ -193,6 +195,20 @@ pub async fn main() -> eyre::Result<()> {
             GlobalCommands::Restart { rest } => {
                 global::stop_all_projects(&rest).await?;
                 global::start_all_projects(&rest).await?;
+            }
+        },
+        Commands::Config { key, value } => match (key, value) {
+            (Some(key), Some(value)) => {
+                set_config(key, value)?;
+            }
+            (Some(key), None) => {
+                get_config(key)?;
+            }
+            (None, None) => {
+                print_config()?;
+            }
+            (None, Some(_)) => {
+                eyre::bail!("Value provided without key");
             }
         },
         Commands::Traefik { command } => {
