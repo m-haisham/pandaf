@@ -4,6 +4,7 @@ import { registerDevServer } from "./dev-registry.js";
 import { discoverLayouts } from "./discover.js";
 import { writeManifest } from "./manifest.js";
 import { generateTypes } from "./types.js";
+import { inlineAssetsPlugin } from "./inline-assets.js";
 
 export interface VuedoPluginOptions {
   /** Absolute (or cwd-relative) path to the folder of `.vue` templates. */
@@ -28,7 +29,10 @@ export function vuedo(opts: VuedoPluginOptions): Plugin {
     async config(_config, { command }) {
       if (command !== "build") return;
       const disc = await discoverLayouts(opts.templatesDir);
-      return { build: { ssr: true, rollupOptions: { input: disc.entries } } };
+      return {
+        plugins: [inlineAssetsPlugin()],
+        build: { ssr: true, rollupOptions: { input: disc.entries } },
+      };
     },
     async closeBundle() {
       await writeManifest(opts.templatesDir, outDir);

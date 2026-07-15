@@ -9,11 +9,12 @@ import { loadManifest, type PdfManifest } from "./manifest.js";
 import { renderComponent } from "./render-component.js";
 import { sendToGotenberg } from "./gotenberg.js";
 import { wrapHtml } from "./html.js";
+import { inlineCssAssets, inlineHtmlAssets } from "./inline-assets.js";
 import type { Discovery } from "./discover.js";
 
 export interface PdfKitOptions {
-  /** Absolute path to the folder of `.vue` templates. */
-  templatesDir: string;
+  /** Folder of `.vue` templates. Defaults to `<cwd>/templates`. */
+  templatesDir?: string;
   gotenbergUrl: string;
   /** Optional — enables layout-measurement caching (planned). */
   redisUrl?: string;
@@ -25,6 +26,8 @@ export interface PdfKitOptions {
   manifestPath?: string;
   /** Optional CSS inlined into every wrapped document. */
   css?: string;
+  /** Folder of static assets (images/fonts) inlined as Base64. Defaults to `<templatesDir>/../assets`. */
+  assetsDir?: string;
 }
 
 /** Gotenberg page margins, sent as the `options` field of `generatePdf`. */
@@ -62,12 +65,16 @@ export interface PdfKit<
   close(): Promise<void>;
 }
 
+export { inlineCssAssets };
+
 export function createPdfKit<
   Props extends Record<string, { body: any; options?: any }> = Record<
     string,
     { body: any }
   >,
 >(options: PdfKitOptions): PdfKit<Props> {
+  const templatesDir = options.templatesDir ?? path.join(process.cwd(), "templates");
+  const assetsDir = options.assetsDir ?? path.join(templatesDir, "..", "assets");
   const isDev =
     (options.mode ??
       (process.env.NODE_ENV === "production"
@@ -75,7 +82,7 @@ export function createPdfKit<
         : "development")) === "development";
   const manifestPath =
     options.manifestPath ??
-    path.resolve(options.templatesDir, "..", "dist", "pdf-manifest.json");
+    path.resolve(templatesDir, "..", "dist", "pdf-manifest.json");
 
   let devRender: RenderFn | undefined;
   let devDiscovery: Discovery | undefined;
@@ -83,7 +90,7 @@ export function createPdfKit<
 
   async function ensureDev(): Promise<void> {
     if (!devRender) {
-      const r = await getDevRenderer(options.templatesDir);
+      const r = await getDevRenderer(templatesDir);
       devRender = r.render;
       devDiscovery = r.discovery;
     }
@@ -106,15 +113,22 @@ export function createPdfKit<
   // Renders a single template (by dotted name) to a wrapped HTML string. Picks
   // the dev ssrLoadModule path or the pre-compiled prod module accordingly.
   async function renderOne(name: string, data: unknown): Promise<string> {
+    let inner: string;
     if (isDev) {
       await ensureDev();
-      return wrapHtml(await devRender!(name, data), options.css);
+      inner = await devRender!(name, data);
+    } else {
+      await ensureProd();
+      const modPath = prodManifest!.entries[name];
+      if (!modPath) throw new Error(`Unknown template: ${name}`);
+      const mod = await import(pathToFileURL(modPath).href);
+      inner = await renderComponent(mod, data);
     }
-    await ensureProd();
-    const modPath = prodManifest!.entries[name];
-    if (!modPath) throw new Error(`Unknown template: ${name}`);
-    const mod = await import(pathToFileURL(modPath).href);
-    return wrapHtml(await renderComponent(mod, data), options.css);
+    // Embed any remaining local asset refs (dev URLs, SFC <style> fonts) as
+    // Base64 so Gotenberg needs no network. Prod builds already inline via the
+    // Vite plugin, so this is mostly a no-op there.
+    const inlined = await inlineHtmlAssets(inner, assetsDir);
+    return wrapHtml(inlined, options.css);
   }
 
   async function renderHtml(template: any, data: any): Promise<string> {

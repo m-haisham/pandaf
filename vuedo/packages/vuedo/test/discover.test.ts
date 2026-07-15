@@ -40,4 +40,35 @@ describe("discoverLayouts — file-based layout pairing", () => {
       footer: "Sub.BFooter",
     });
   });
+
+  it("also pairs kebab-case -header/-footer suffixes", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vuedo-disc-"));
+    const write = async (rel: string, content: string) => {
+      const p = path.join(dir, rel);
+      await fs.mkdir(path.dirname(p), { recursive: true });
+      await fs.writeFile(p, content);
+    };
+    await write("invoice.vue", "<template><div>A</div></template>");
+    await write("invoice-header.vue", "<template><div>A-H</div></template>");
+    await write("invoice-footer.vue", "<template><div>A-F</div></template>");
+    await write("pos/pos-order.vue", "<template><div>B</div></template>");
+    await write("pos/pos-header.vue", "<template><div>B-H</div></template>");
+
+    const disc = await discoverLayouts(dir);
+
+    expect(disc.entries["invoice"]).toBeDefined();
+    expect(disc.entries["pos.pos-order"]).toBeDefined();
+    expect(disc.entries["pos.pos-header"]).toBeDefined();
+
+    expect(disc.layouts["invoice"]).toEqual({
+      body: "invoice",
+      header: "invoice-header",
+      footer: "invoice-footer",
+    });
+    expect(disc.layouts["pos.pos-order"]).toEqual({
+      body: "pos.pos-order",
+      header: "pos.pos-header",
+      footer: undefined,
+    });
+  });
 });

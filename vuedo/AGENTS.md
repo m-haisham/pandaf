@@ -59,20 +59,29 @@ vite-plugin.ts      exported as '@hshm/vuedo/vite'
 cli.ts              exported as bin 'vuedo'
 ```
 
-## Root Service Layout (`src`)
+## Root Service Layout
 
 ```
-pdf-templates/      Vue SFCs — the PDF templates (file-based layout convention, §below)
-  Invoice.vue         body
-  InvoiceHeader.vue   header (auto-pairs with Invoice)
-  InvoiceFooter.vue   footer (auto-pairs with Invoice)
-  Pos/PosOrder.vue    nested body
-  Pos/PosHeader.vue   header (auto-pairs with Pos.PosOrder via folder convention)
-assets/             static assets referenced by templates (inlined at build)
-server.ts           normal Elysia server (node adapter) — one typed route per template
-generated/          AUTO-GENERATED PdfTemplateProps (gitignored) — see "Type Generation"
-vuedf-env.d.ts      shim so `.vue` imports type-check
+templates/         Vue SFCs — the PDF templates (file-based layout convention, §below).
+                    Lowercase kebab-case filenames (Nuxt-style):
+  invoice.vue         body
+  invoice-header.vue  header (auto-pairs with invoice)
+  invoice-footer.vue  footer (auto-pairs with invoice)
+  pos/pos-order.vue   nested body
+  pos/pos-header.vue  header (auto-pairs with pos.pos-order via folder convention)
+assets/            static assets referenced by templates (images + fonts, base64-inlined)
+  app.css           Tailwind v4 entry (compiled to dist/app.css by the build/dev scripts)
+  logo.png
+  fonts/            custom .woff2/.ttf files (referenced from app.css @font-face)
+src/
+  server.ts         normal Elysia server (node adapter) — one typed route per template
+  generated/        AUTO-GENERATED PdfTemplateProps (gitignored) — see "Type Generation"
+  vuedo-env.d.ts    shim so `.vue` imports type-check
 ```
+
+The library defaults `templatesDir` to `<cwd>/templates`, so a consumer usually
+doesn't even need to pass it. Assets live in `<cwd>/assets` (sibling of
+`templates/`) so a template's `../assets/...` import resolves there.
 
 ## File-Based Layout Convention
 
@@ -80,11 +89,14 @@ There is **no** `header`/`footer` field on the request. Layout is inferred from
 the template filenames (`packages/vuedo/src/discover.ts`):
 
 - `X.vue` → a **body** template named `X`.
-- `XHeader.vue` / `XFooter.vue` in the **same folder** → paired with `X`.
+- `XHeader.vue` / `XFooter.vue` in the **same folder** → paired with `X`
+  (**legacy PascalCase**). Preferred is the lowercase kebab form:
+  `x-header.vue` / `x-footer.vue` pairs with `x.vue`.
 - Subdirectories are allowed and matched within their own folder:
-  `Pos/PosHeader.vue` pairs with `Pos/PosOrder.vue` (the aux's base is its
-  parent folder, `Pos`, which matches the longest body `Pos.PosOrder`).
-- A template name is its path with `/` → `.` (`Pos/PosOrder` → `Pos.PosOrder`).
+  `Pos/PosHeader.vue` pairs with `Pos/PosOrder.vue`, and the kebab
+  `pos/pos-header.vue` pairs with `pos/pos-order.vue` (the aux's base is its
+  parent folder, `pos`, which matches the longest body `pos.pos-order`).
+- A template name is its path with `/` → `.` (`pos/pos-order` → `pos.pos-order`).
 - An aux file whose base matches no body is an orphan (compiled but unused).
 
 `createPdfKit().generatePdf(name, data)` resolves the layout automatically and
@@ -92,7 +104,7 @@ renders body + the paired header/footer. The `data` object carries each
 section's own props, so header/footer are never forced to share the body's data:
 
 ```ts
-generatePdf("Invoice", {
+generatePdf("invoice", {
   header:  { id, customerName },
   body:    { id, customerName },
   footer:  { id, customerName },
@@ -115,23 +127,23 @@ the sections that exist:
 ```ts
 import type { ComponentProps } from "vue-component-type-helpers";
 import type { GeneratePdfOptions } from "@hshm/vuedo";
-import Invoice from "../pdf-templates/Invoice.vue";
-import InvoiceFooter from "../pdf-templates/InvoiceFooter.vue";
-import InvoiceHeader from "../pdf-templates/InvoiceHeader.vue";
-import Pos_PosHeader from "../pdf-templates/Pos/PosHeader.vue";
-import Pos_PosOrder from "../pdf-templates/Pos/PosOrder.vue";
+import Invoice from "../templates/invoice.vue";
+import InvoiceFooter from "../templates/invoice-footer.vue";
+import InvoiceHeader from "../templates/invoice-header.vue";
+import Pos_PosHeader from "../templates/pos/pos-header.vue";
+import Pos_PosOrder from "../templates/pos/pos-order.vue";
 
 export type PdfTemplateProps = {
-  "Invoice": {
+  "invoice": {
     header:  ComponentProps<typeof InvoiceHeader>;
     body:    ComponentProps<typeof Invoice>;
     footer:  ComponentProps<typeof InvoiceFooter>;
     options?: GeneratePdfOptions;
   };
-  "Pos.PosOrder": {
+  "pos.pos-order": {
     header:  ComponentProps<typeof Pos_PosHeader>;
     body:    ComponentProps<typeof Pos_PosOrder>;
-    options: GeneratePdfOptions; // no footer key — Pos.PosOrder has no footer
+    options: GeneratePdfOptions; // no footer key — pos.pos-order has no footer
   };
 };
 ```
@@ -140,7 +152,7 @@ Consumers pass it to the kit for full type-checking:
 
 ```ts
 const pdf = createPdfKit<PdfTemplateProps>({ templatesDir, gotenbergUrl });
-pdf.generatePdf("Invoice", { header, body, footer, options }); // fully type-checked
+pdf.generatePdf("invoice", { header, body, footer, options }); // fully type-checked
 ```
 
 Accurate prop inference requires type-checking with **`vue-tsc`** (the root
@@ -152,10 +164,12 @@ props via Volar. The generated file is gitignored (`src/generated/`).
 - `pnpm install` — install all workspace deps
 - `pnpm --filter @hshm/vuedo build` — compile the library to `packages/vuedo/dist`
   (**do this first** — the root service and its Vite config import the built lib)
-- `pnpm dev` (root) — dev server on `:8080` (normal Elysia `app.listen`); templates
-  hot-compile via the library's tier-3 owned Vite, **no build step**
+- `pnpm dev` (root) — dev server on `:8080` (normal Elysia `app.listen`) plus a
+  Tailwind CLI `--watch` (via `concurrently`) compiling `app.css` → `dist/app.css`;
+  templates hot-compile via the library's tier-3 owned Vite, **no vite build step**
 - `pnpm build` (root) — `vite build` with the `vuedo` plugin → `dist/` +
-  `pdf-manifest.json` + `src/generated/pdf-templates.d.ts`
+  `pdf-manifest.json` + `src/generated/pdf-templates.d.ts`, then `build:css`
+  compiles Tailwind `app.css` → `dist/app.css`
 - `pnpm start` (root) — `NODE_ENV=production` server, reads the manifest
 - `pnpm typecheck` (root) — `vue-tsc --noEmit` (validates generated props)
 - `pnpm -r test` — run both suites (library + consumer)
@@ -172,7 +186,14 @@ props via Volar. The generated file is gitignored (`src/generated/`).
 - Each template gets **its own typed Elysia route** (e.g. `POST /invoice`), not a
   single generic public endpoint — TypeBox validates the `{ header?, body, footer?,
   options }` payload per template at the edge.
-- All assets inline as Base64 at build time (no runtime network fetches).
+- **Styling**: templates use Tailwind utility classes. `app.css` (`@import
+  "tailwindcss";`) is compiled to `dist/app.css` by the `dev`/`build:css` scripts
+  and passed to `createPdfKit({ css })`, which `wrapHtml` injects into every
+  rendered section. Custom fonts go in `assets/fonts/` and are referenced via
+  `@font-face` in `app.css`; vuedo base64-inlines them at runtime.
+- All assets inline as Base64 (no runtime network fetches): imported images/fonts
+  in templates are inlined by the library's `inlineAssetsPlugin` (dev + prod), and
+  local `url()` refs in `app.css` are inlined by `inlineCssAssets` before injection.
 - The library must never import `vite` at module top level (only dynamically, in
   the tier-3 fallback and the CLI) so the optional-peer-dependency guarantee
   holds. `vite-plugin.ts` uses `import type` only.

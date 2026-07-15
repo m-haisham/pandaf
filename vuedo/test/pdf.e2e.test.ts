@@ -40,13 +40,13 @@ describe.skipIf(!gotenbergAvailable)(
 
     it("renders body + auto-paired header/footer and returns a real PDF", async () => {
       const kit = createPdfKit({
-        templatesDir: path.resolve("src/pdf-templates"),
+        templatesDir: path.resolve("templates"),
         gotenbergUrl: GOTENBERG_URL,
         mode: "production",
         manifestPath: path.resolve("dist/pdf-manifest.json"),
       });
 
-      const stream = await kit.generatePdf("Invoice", {
+      const stream = await kit.generatePdf("invoice", {
         header: { id: "INV-HF-1", customerName: "Header Footer Co" },
         body: { id: "INV-HF-1", customerName: "Header Footer Co" },
         footer: { id: "INV-HF-1", customerName: "Header Footer Co" },
@@ -67,13 +67,13 @@ describe.skipIf(!gotenbergAvailable)(
 
     it("renders a nested template with its paired header (Pos.PosOrder)", async () => {
       const kit = createPdfKit({
-        templatesDir: path.resolve("src/pdf-templates"),
+        templatesDir: path.resolve("templates"),
         gotenbergUrl: GOTENBERG_URL,
         mode: "production",
         manifestPath: path.resolve("dist/pdf-manifest.json"),
       });
 
-      const stream = await kit.generatePdf("Pos.PosOrder", {
+      const stream = await kit.generatePdf("pos.pos-order", {
         header: { store: "Downtown" },
         body: { orderId: "ORD-9", total: 42 },
         options: {},

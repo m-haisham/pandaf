@@ -43,8 +43,10 @@ async function walk(dir: string, root: string, out: string[]): Promise<void> {
 
 // File-based layout convention (no per-request config):
 //   X.vue                -> body template named "X"
-//   XHeader.vue          -> header paired with "X" (same folder)
-//   XFooter.vue          -> footer paired with "X" (same folder)
+//   XHeader.vue          -> header paired with "X" (same folder)  [legacy]
+//   X-header.vue         -> header paired with "X" (same folder)  [kebab]
+//   XFooter.vue          -> footer paired with "X" (same folder)  [legacy]
+//   X-footer.vue         -> footer paired with "X" (same folder)  [kebab]
 // Subdirectories are allowed and matched within their own folder
 // (Pos/PosHeader.vue pairs with Pos/PosOrder.vue).
 export async function discoverLayouts(templatesDir: string): Promise<Discovery> {
@@ -59,18 +61,35 @@ export async function discoverLayouts(templatesDir: string): Promise<Discovery> 
     const dotted = toDotted(rel);
     entries[dotted] = path.resolve(templatesDir, rel);
 
+    // Classify by the LAST dotted segment so nested templates (Pos.pos-header)
+    // are handled correctly. Supports both kebab (-header/-footer) and legacy
+    // PascalCase (Header/Footer) suffixes.
+    const segs = dotted.split(".");
+    const last = segs[segs.length - 1];
     let kind: TemplateKind = "body";
-    if (dotted.endsWith("Header")) kind = "header";
-    else if (dotted.endsWith("Footer")) kind = "footer";
+    let suffixLen = 0;
+    if (last.endsWith("-header")) {
+      kind = "header";
+      suffixLen = "-header".length;
+    } else if (last.endsWith("-footer")) {
+      kind = "footer";
+      suffixLen = "-footer".length;
+    } else if (last.endsWith("Header")) {
+      kind = "header";
+      suffixLen = "Header".length;
+    } else if (last.endsWith("Footer")) {
+      kind = "footer";
+      suffixLen = "Footer".length;
+    }
 
     if (kind === "body") {
       bodies.add(dotted);
     } else {
-      // The aux's base is its parent folder segment. For `InvoiceHeader` the
-      // parent is `Invoice`; for `Pos.PosHeader` (Pos/PosHeader.vue) the parent
-      // is `Pos`, which pairs it with `Pos.PosOrder`. This supports both the
-      // "<Body>Header.vue" rule and nested "<Folder>/<Folder>Header.vue".
-      const stripped = dotted.slice(0, -kind.length); // drop "Header"/"Footer"
+      // The aux's base is its parent folder prefix. Drop the suffix from the
+      // whole dotted name, then take everything up to the last `.`:
+      //   invoice-header  -> invoice
+      //   pos.pos-header   -> pos  (pairs with pos.pos-order)
+      const stripped = dotted.slice(0, dotted.length - suffixLen);
       const base = stripped.includes(".")
         ? stripped.slice(0, stripped.lastIndexOf("."))
         : stripped;

@@ -3,6 +3,7 @@ import type { ViteDevServer } from "vite";
 import { getSharedDevServer } from "./dev-registry.js";
 import { renderComponent } from "./render-component.js";
 import { discoverLayouts, type Discovery } from "./discover.js";
+import { inlineAssetsPlugin } from "./inline-assets.js";
 
 export type RenderFn = (template: string, data: unknown) => Promise<string>;
 
@@ -16,7 +17,7 @@ async function createOwnedVite(templatesDir: string): Promise<ViteDevServer> {
   return createServer({
     root: templatesDir,
     configFile: false,
-    plugins: [vue()],
+    plugins: [vue(), inlineAssetsPlugin()],
     server: { middlewareMode: true },
     appType: "custom",
   });

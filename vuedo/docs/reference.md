@@ -18,7 +18,7 @@ Dev-mode stays live with **no `vite build` in the loop**, same guarantee as befo
 │                                                                   │
 │    app.post('/invoices/:id/pdf', async (ctx) => {                │
 │      const data = await getInvoiceData(ctx.params.id);           │
-│      return vuedo.generatePdf('Invoice', { header: data, body: data, footer: data, options: {} });   ◄── one call  │
+│      return vuedo.generatePdf('invoice', { header: data, body: data, footer: data, options: {} });   ◄── one call  │
 │    })                                                             │
 └───────────────────────────────────────────────────────────────┘
                               │
@@ -216,11 +216,14 @@ A template's layout (body + optional header/footer) is inferred from filenames
 in `templatesDir` — there is no per-request `header`/`footer` field:
 
 - `X.vue` → a **body** template named `X`.
-- `XHeader.vue` / `XFooter.vue` in the **same folder** → paired with `X`.
+- `XHeader.vue` / `XFooter.vue` in the **same folder** → paired with `X`
+  (**legacy PascalCase**). Preferred is the lowercase kebab form:
+  `x-header.vue` / `x-footer.vue` pairs with `x.vue`.
 - Subdirectories are allowed and matched within their own folder:
-  `Pos/PosHeader.vue` pairs with `Pos/PosOrder.vue` (the aux's base is its parent
-  folder, `Pos`, which matches the longest body `Pos.PosOrder`).
-- A template name is its relative path with `/` → `.` (`Pos/PosOrder`).
+  `Pos/PosHeader.vue` pairs with `Pos/PosOrder.vue`, and the kebab
+  `pos/pos-header.vue` pairs with `pos/pos-order.vue` (the aux's base is its parent
+  folder, `pos`, which matches the longest body `pos.pos-order`).
+- A template name is its relative path with `/` → `.` (`pos/pos-order`).
 - An aux whose base matches no body is an orphan (compiled but unused).
 
 `generatePdf(name, data)` resolves the layout and renders body + the paired
@@ -241,12 +244,12 @@ Consumers pass it to the kit for type-checked calls:
 
 ```ts
 const vuedo = createPdfKit<PdfTemplateProps>({ templatesDir, gotenbergUrl });
-vuedo.generatePdf("Invoice", {
+vuedo.generatePdf("invoice", {
   header: { id, customerName },
   body: { id, customerName },
   footer: { id, customerName },
   options: {},
-}); // data type-checked against PdfTemplateProps["Invoice"]
+}); // data type-checked against PdfTemplateProps["invoice"]
 ```
 
 Accurate props require type-checking with `vue-tsc` (Volar), not plain `tsc`.
@@ -264,7 +267,7 @@ import { vuedo } from '@hshm/vuedo/vite';
 
 export default defineConfig({
   plugins: [
-    vuedo({ templatesDir: './src/pdf-templates' }),
+    vuedo({ templatesDir: './templates' }),
   ],
 });
 ```
@@ -298,7 +301,7 @@ The host's normal `vite build` now also compiles every `.vue` file under `templa
 **Path B — host has no Vite at all (plain Node/Elysia backend, no frontend build):**
 
 ```bash
-npx vuedo build --templates ./src/pdf-templates --out ./dist
+npx vuedo build --templates ./templates --out ./dist
 ```
 
 ```ts
@@ -326,7 +329,7 @@ import { Elysia } from 'elysia';
 import { createPdfKit } from '@hshm/vuedo';
 
 const vuedo = createPdfKit({
-  templatesDir: new URL('./pdf-templates', import.meta.url).pathname,
+  templatesDir: new URL('./templates', import.meta.url).pathname,
   gotenbergUrl: process.env.GOTENBERG_URL!,
 });
 
@@ -335,7 +338,7 @@ new Elysia()
     const data = await getInvoiceData(params.id);
     set.headers['Content-Type'] = 'application/pdf';
     set.headers['Content-Disposition'] = `attachment; filename="invoice-${params.id}.pdf"`;
-    return vuedo.generatePdf('Invoice', { header: data, body: data, footer: data, options: {} });
+    return vuedo.generatePdf('invoice', { header: data, body: data, footer: data, options: {} });
   })
   .listen(3000);
 ```
@@ -345,7 +348,7 @@ new Elysia()
 app.get('/invoices/:id/pdf', async (req, res) => {
   const data = await getInvoiceData(req.params.id);
   res.setHeader('Content-Type', 'application/pdf');
-  const stream = await vuedo.generatePdf('Invoice', { header: data, body: data, footer: data, options: {} });
+  const stream = await vuedo.generatePdf('invoice', { header: data, body: data, footer: data, options: {} });
   Readable.fromWeb(stream).pipe(res);
 });
 ```
@@ -354,7 +357,7 @@ app.get('/invoices/:id/pdf', async (req, res) => {
 // Hono — same again
 app.get('/invoices/:id/pdf', async (c) => {
   const data = await getInvoiceData(c.req.param('id'));
-  const stream = await vuedo.generatePdf('Invoice', { header: data, body: data, footer: data, options: {} });
+  const stream = await vuedo.generatePdf('invoice', { header: data, body: data, footer: data, options: {} });
   return new Response(stream, { headers: { 'Content-Type': 'application/pdf' } });
 });
 ```

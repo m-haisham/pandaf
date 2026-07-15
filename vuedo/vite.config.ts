@@ -9,7 +9,7 @@ import path from "node:path";
 export default defineConfig({
   plugins: [
     vue(),
-    vuedo({ templatesDir: path.resolve("src/pdf-templates"), outDir: "dist" }),
+    vuedo({ templatesDir: path.resolve("templates"), outDir: "dist" }),
   ],
   build: {
     outDir: "dist",
