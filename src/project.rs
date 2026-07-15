@@ -71,7 +71,7 @@ pub fn dir_name_to_project<'a>(name: &str) -> Option<&'static str> {
         "operations" => Some("operations"),
         "foundation" => Some("foundation"),
         "products" => Some("products"),
-        "app" => Some("app"),
+        "app" | "hummingbird-app" => Some("app"),
         "nest" | "nest-app" => Some("nest"),
         _ => None,
     }
