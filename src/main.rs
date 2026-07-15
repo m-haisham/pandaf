@@ -1,9 +1,11 @@
 mod cli;
 mod docker;
 mod doctor;
+mod git;
 mod global;
 mod gzip;
 mod infra;
+mod kebab;
 mod project;
 
 use std::path::PathBuf;
@@ -11,7 +13,9 @@ use std::path::PathBuf;
 use clap::Parser;
 use cli::{Cli, Commands, GlobalCommands};
 use eyre::{eyre, Context};
+use git::current_branch;
 use infra::set_current_infra;
+use kebab::kebabify;
 use project::{set_current_project, ProjectCommands, HBT_PROJECTS};
 use tracing::level_filters::LevelFilter;
 
@@ -129,7 +133,7 @@ async fn project_command(app: String, command: ProjectCommands) -> eyre::Result<
             args.extend(rest.iter().map(|s| s.as_str()));
             docker::compose_exec(&args).await?;
         }
-        ProjectCommands::Dump => {
+        ProjectCommands::Dump { key } => {
             let infra_env = infra::get_infra_env().await?;
             set_current_infra()?;
 
@@ -137,9 +141,18 @@ async fn project_command(app: String, command: ProjectCommands) -> eyre::Result<
                 .map_err(|e| eyre!(e))
                 .wrap_err("HBT_ROOT not set")?;
 
+            let timestamp = chrono::Utc::now().format("%Y-%m-%dT%H-%M-%S");
+            let key = match key {
+                Some(key) => key.to_string(),
+                None => {
+                    let branch = current_branch().await?;
+                    kebabify(&branch).into_inner()
+                }
+            };
+
             let dump_file = PathBuf::from(hbt_root)
                 .join("dumps")
-                .join(format!("{}.sql.gz", app));
+                .join(format!("{timestamp}_{app}_{key}.sql.gz"));
 
             if let Some(dump_dir) = dump_file.parent() {
                 std::fs::create_dir_all(dump_dir)

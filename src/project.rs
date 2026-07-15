@@ -2,6 +2,8 @@ use clap::Parser;
 use eyre::{eyre, WrapErr};
 use std::{env::set_current_dir, path::Path};
 
+use crate::kebab::Kebab;
+
 pub const HBT_PROJECTS: [&str; 11] = [
     "traefik",
     "infra",
@@ -104,5 +106,8 @@ pub enum ProjectCommands {
     /// Alias for phpunit in the project
     Phpunit { rest: Vec<String> },
     /// Dump the database
-    Dump,
+    Dump {
+        /// A unique key to identify the dump
+        key: Option<Kebab>,
+    },
 }
