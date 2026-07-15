@@ -82,8 +82,43 @@ async fn project_command(app: String, command: ProjectCommands) -> eyre::Result<
             docker::compose_down(&rest).await?;
             docker::compose_up(&rest).await?;
         }
+        ProjectCommands::Shell { rest } => {
+            let mut args = vec!["php-fpm", "/bin/bash"];
+            args.extend(rest.iter().map(|s| s.as_str()));
+            docker::compose_exec(&args).await?;
+        }
+        ProjectCommands::Node { rest } => {
+            let mut args = vec!["node", "node"];
+            args.extend(rest.iter().map(|s| s.as_str()));
+            docker::compose_exec(&args).await?;
+        }
+        ProjectCommands::Npm { rest } => {
+            let mut args = vec!["node", "npm"];
+            args.extend(rest.iter().map(|s| s.as_str()));
+            docker::compose_exec(&args).await?;
+        }
+        ProjectCommands::Yarn { rest } => {
+            let mut args = vec!["node", "yarn"];
+            args.extend(rest.iter().map(|s| s.as_str()));
+            docker::compose_exec(&args).await?;
+        }
+        ProjectCommands::Php { rest } => {
+            let mut args = vec!["php-fpm", "php"];
+            args.extend(rest.iter().map(|s| s.as_str()));
+            docker::compose_exec(&args).await?;
+        }
         ProjectCommands::Artisan { rest } => {
             let mut args = vec!["php-fpm", "php", "artisan"];
+            args.extend(rest.iter().map(|s| s.as_str()));
+            docker::compose_exec(&args).await?;
+        }
+        ProjectCommands::Composer { rest } => {
+            let mut args = vec!["php-fpm", "composer"];
+            args.extend(rest.iter().map(|s| s.as_str()));
+            docker::compose_exec(&args).await?;
+        }
+        ProjectCommands::Phpunit { rest } => {
+            let mut args = vec!["php-fpm", "php", "vendor/bin/phpunit"];
             args.extend(rest.iter().map(|s| s.as_str()));
             docker::compose_exec(&args).await?;
         }

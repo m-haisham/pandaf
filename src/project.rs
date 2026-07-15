@@ -82,5 +82,12 @@ pub enum ProjectCommands {
     Up { rest: Vec<String> },
     Down { rest: Vec<String> },
     Restart { rest: Vec<String> },
+    Shell { rest: Vec<String> },
+    Node { rest: Vec<String> },
+    Npm { rest: Vec<String> },
+    Yarn { rest: Vec<String> },
+    Php { rest: Vec<String> },
     Artisan { rest: Vec<String> },
+    Composer { rest: Vec<String> },
+    Phpunit { rest: Vec<String> },
 }
