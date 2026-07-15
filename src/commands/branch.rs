@@ -36,6 +36,8 @@ pub async fn print_branches(mut context: AppContext) -> eyre::Result<()> {
             .map_err(|e| eyre!(e))
             .wrap_err("Failed to get current branch")?;
 
+        let commit = git::current_commit().await;
+
         let draw = DrawContext::new_from_context(&context);
 
         let style = Style::new();
@@ -52,7 +54,24 @@ pub async fn print_branches(mut context: AppContext) -> eyre::Result<()> {
             style
         };
 
-        draw.draw_labeled_styled(project.name(), &style.apply_to(branch).to_string(), style)?;
+        let commit_output = match commit {
+            Ok(commit) => {
+                let commit = format!(
+                    "; {} {}",
+                    commit.short_hash,
+                    commit.message.unwrap_or_default()
+                );
+                Style::new().apply_to(commit)
+            }
+            Err(e) => {
+                let error = format!("; {}", e);
+                Style::new().red().apply_to(error)
+            }
+        };
+
+        let value = format!("{}{}", style.apply_to(branch), commit_output);
+
+        draw.draw_labeled_styled(project.name(), &value, style)?;
     }
 
     Ok(())

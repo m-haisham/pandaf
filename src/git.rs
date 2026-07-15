@@ -55,6 +55,58 @@ pub async fn current_branch() -> eyre::Result<String> {
     Ok(branch)
 }
 
+#[derive(Debug)]
+pub struct GitCommit {
+    pub hash: String,
+    pub short_hash: String,
+    pub message: Option<String>,
+    pub long_message: Option<String>,
+}
+
+pub async fn current_commit() -> eyre::Result<GitCommit> {
+    let output = Command::new("git")
+        .arg("log")
+        .arg("-1")
+        .arg("--pretty=format:%H %s %b")
+        .output()
+        .await
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to get current commit")?;
+
+    let output = String::from_utf8(output.stdout)
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to parse commit")?;
+
+    let mut parts = output.splitn(2, ' ');
+
+    let hash = parts
+        .next()
+        .ok_or_else(|| eyre!("Failed to parse commit hash"))?
+        .to_owned();
+
+    let short_hash = hash
+        .get(..7)
+        .ok_or_else(|| eyre!("Failed to get short hash"))?
+        .to_owned();
+
+    let full_message = parts
+        .next()
+        .ok_or_else(|| eyre!("Failed to get commit message"))?
+        .trim();
+
+    let mut message_parts = full_message.splitn(2, '\n');
+
+    let message = message_parts.next().map(|s| s.trim().to_owned());
+    let long_message = message_parts.next().map(|s| s.trim().to_owned());
+
+    Ok(GitCommit {
+        hash,
+        short_hash,
+        message,
+        long_message,
+    })
+}
+
 pub async fn current_origin() -> eyre::Result<String> {
     let output = Command::new("git")
         .arg("remote")
