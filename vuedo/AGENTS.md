@@ -126,7 +126,7 @@ export type PdfTemplateProps = {
     header:  ComponentProps<typeof InvoiceHeader>;
     body:    ComponentProps<typeof Invoice>;
     footer:  ComponentProps<typeof InvoiceFooter>;
-    options: GeneratePdfOptions;
+    options?: GeneratePdfOptions;
   };
   "Pos.PosOrder": {
     header:  ComponentProps<typeof Pos_PosHeader>;

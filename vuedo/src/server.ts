@@ -32,13 +32,13 @@ const invoiceSchema = t.Object({
   header: t.Object({ id: t.String(), customerName: t.String() }),
   body: t.Object({ id: t.String(), customerName: t.String() }),
   footer: t.Object({ id: t.String(), customerName: t.String() }),
-  options: optionsSchema,
+  options: t.Optional(optionsSchema),
 });
 
 const posOrderSchema = t.Object({
   header: t.Object({ store: t.String() }),
   body: t.Object({ orderId: t.String(), total: t.Number() }),
-  options: optionsSchema,
+  options: t.Optional(optionsSchema),
 });
 
 function pdfResponse(
@@ -51,6 +51,67 @@ function pdfResponse(
       "Content-Disposition": `attachment; filename="${filename}.pdf"`,
     },
   });
+}
+
+// Browser-friendly landing page: each template is its own typed POST route, so
+// navigating directly to /invoice (a GET) would 404. This GET / page posts
+// sample payloads via fetch so the PDF / preview can be triggered from a browser.
+const SAMPLE_PAYLOADS: Record<string, unknown> = {
+  invoice: {
+    header: { id: "INV-1", customerName: "Acme Corp" },
+    body: { id: "INV-1", customerName: "Acme Corp" },
+    footer: { id: "INV-1", customerName: "Acme Corp" },
+    options: {},
+  },
+  "pos-order": {
+    header: { store: "Downtown" },
+    body: { orderId: "ORD-9", total: 42 },
+    options: {},
+  },
+};
+
+function landingPage(): string {
+  const cards = Object.keys(SAMPLE_PAYLOADS)
+    .map((name) => {
+      const sample = JSON.stringify(SAMPLE_PAYLOADS[name], null, 2);
+      return `
+      <div class="card">
+        <h2>POST /${name}</h2>
+        <textarea id="ta-${name}" rows="9">${sample}</textarea>
+        <div class="row">
+          <button onclick="gen('${name}', false)">Generate PDF</button>
+          <button onclick="gen('${name}', true)">Preview HTML</button>
+        </div>
+        <iframe id="out-${name}"></iframe>
+      </div>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>vuedo</title>
+  <style>body{font-family:sans-serif;margin:2rem;color:#111}
+  .card{border:1px solid #ddd;border-radius:8px;padding:1rem;margin-bottom:1.5rem;max-width:720px}
+  textarea{width:100%;font-family:monospace;box-sizing:border-box}
+  .row{margin:.6rem 0} button{margin-right:.5rem;padding:.4rem .8rem}
+  iframe{width:100%;height:420px;border:1px solid #eee;border-radius:6px}</style>
+  </head><body>
+  <h1>vuedo</h1>
+  <p>Each template is its own typed <code>POST</code> route with TypeBox validation.
+     Edit the sample payload, then generate a PDF or preview the composed SSR HTML.</p>
+  ${cards}
+  <script>
+    async function gen(name, preview) {
+      const ta = document.getElementById('ta-' + name);
+      let payload;
+      try { payload = JSON.parse(ta.value); } catch (e) { alert('Invalid JSON: ' + e.message); return; }
+      const res = await fetch('/' + name + (preview ? '?preview=html' : ''), {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      const out = document.getElementById('out-' + name);
+      if (preview) { out.srcdoc = await res.text(); }
+      else { out.src = URL.createObjectURL(await res.blob()); }
+    }
+  </script>
+  </body></html>`;
 }
 
 export const app = new Elysia({ adapter: node() })
@@ -84,13 +145,9 @@ export const app = new Elysia({ adapter: node() })
     { body: posOrderSchema },
   )
   .get("/", () => {
-    return new Response(
-      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>vuedo</title></head>` +
-        `<body><h1>vuedo</h1><p>POST a typed body to each template route:</p>` +
-        `<ul><li><code>POST /invoice</code></li><li><code>POST /pos-order</code></li></ul>` +
-        `<p>Add <code>?preview=html</code> to get the composed SSR HTML instead of a PDF.</p></body></html>`,
-      { headers: { "Content-Type": "text/html" } },
-    );
+    return new Response(landingPage(), {
+      headers: { "Content-Type": "text/html" },
+    });
   })
   .listen(8080);
 

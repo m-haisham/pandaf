@@ -233,7 +233,7 @@ HTML document. `discover.ts` implements the recursive pairing.
 
 On every `vite build` (and via `vuedo types`) the library writes a
 `PdfTemplateProps` type mapping each template name to its inferred `generatePdf`
-data shape (`{ header?, body, footer?, options }`), using
+data shape (`{ header?, body, footer?, options? }`), using
 `vue-component-type-helpers`' `ComponentProps<typeof import('./X.vue').default>`.
 `header`/`footer` keys are present only when the template actually has a paired
 aux, so the call is type-checked against exactly the sections that exist.

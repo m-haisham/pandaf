@@ -54,7 +54,7 @@ export async function generateTypes(
       fields.push(`  body: ComponentProps<typeof ${ident(layout.body)}>;`);
       if (layout.footer)
         fields.push(`  footer: ComponentProps<typeof ${ident(layout.footer)}>;`);
-      fields.push(`  options: GeneratePdfOptions;`);
+      fields.push(`  options?: GeneratePdfOptions;`);
       return `  ${JSON.stringify(bodyName)}: {\n${fields.join("\n")}\n  };`;
     })
     .join("\n");

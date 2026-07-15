@@ -29,7 +29,7 @@ describe("generateTypes — inferred PdfTemplateProps", () => {
     expect(content).toContain("export type PdfTemplateProps = {");
     expect(content).toContain(`"Invoice": {`);
     expect(content).toContain("body: ComponentProps<typeof Invoice>;");
-    expect(content).toContain("options: GeneratePdfOptions;");
+    expect(content).toContain("options?: GeneratePdfOptions;");
     expect(content).toContain(`import Invoice from "../Invoice.vue";`);
   });
 });
