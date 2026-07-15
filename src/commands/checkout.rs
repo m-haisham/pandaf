@@ -6,7 +6,7 @@ use strum::IntoEnumIterator;
 
 use crate::{
     docker, env, git,
-    project::{read_project_env, Project},
+    project::{read_project_env, set_current_project, Project},
 };
 
 pub async fn checkout(branch: Option<String>, migrate: bool) -> eyre::Result<()> {
@@ -85,7 +85,12 @@ async fn migrate_project_db(project: &Project) -> eyre::Result<()> {
         return Ok(());
     }
 
-    docker::compose_exec(&["migrate"])
+    set_current_project(project)
+        .await
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to set current project")?;
+
+    docker::compose_exec(&["artisan", "migrate"])
         .await
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to run database migrations")?;

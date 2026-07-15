@@ -110,6 +110,10 @@ pub fn get_project_dir(project: &Project) -> eyre::Result<Option<std::path::Path
     Ok(Some(project_dir))
 }
 
+/// FIXME: This function does not need to be async because it does not perform any async operations
+///
+/// FIXME: The name of this function is misleading, should specify it is setting
+/// the current directory to the project docker environment
 pub async fn set_current_project(project: &Project) -> eyre::Result<()> {
     tracing::info!("Setting current directory to {}", project.name());
 
