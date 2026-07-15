@@ -1,6 +1,6 @@
 use std::{
     env::current_dir,
-    fs::{create_dir_all, File},
+    fs::File,
     io::{BufReader, BufWriter, Seek, SeekFrom, Write},
     path::Path,
 };
@@ -20,14 +20,9 @@ use crate::{
 pub async fn create_snapshot(context: AppContext) -> eyre::Result<()> {
     tracing::info!("Creating snapshot...");
 
-    let dirs = context.dirs()?;
+    let data_dir = context.data_dir()?;
 
-    tracing::info!("Creating data directory: {}", dirs.data_dir().display());
-    create_dir_all(dirs.data_dir())
-        .map_err(|e| eyre!(e))
-        .wrap_err("Failed to create data directory")?;
-
-    let tempdir = tempfile::tempdir_in(&dirs.data_dir())
+    let tempdir = tempfile::tempdir_in(&data_dir)
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to create temporary directory")?;
 
@@ -58,7 +53,7 @@ pub async fn create_snapshot(context: AppContext) -> eyre::Result<()> {
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to store manifest")?;
 
-    let snapshot_file = tempfile::tempfile_in(&dirs.data_dir())
+    let snapshot_file = tempfile::tempfile_in(&data_dir)
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to create snapshot file")?;
 
