@@ -142,27 +142,60 @@ pub enum GlobalCommands {
 #[derive(Debug, Parser)]
 pub enum ProjectCommands {
     /// Start the project
-    Up { rest: Vec<String> },
+    Up {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Stop the project
-    Down { rest: Vec<String> },
+    Down {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Restart the project
-    Restart { rest: Vec<String> },
+    Restart {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Start an interactive shell in the project
-    Shell { rest: Vec<String> },
+    Shell {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Alias for node in the project
-    Node { rest: Vec<String> },
+    Node {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Alias for npm in the project
-    Npm { rest: Vec<String> },
+    Npm {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Alias for yarn in the project
-    Yarn { rest: Vec<String> },
+    Yarn {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Alias for php in the project
-    Php { rest: Vec<String> },
+    Php {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Alias for artisan in the project
-    Artisan { rest: Vec<String> },
+    Artisan {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Alias for composer in the project
-    Composer { rest: Vec<String> },
+    Composer {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Alias for phpunit in the project
-    Phpunit { rest: Vec<String> },
+    Phpunit {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Dump the database
     Dump {
         /// A unique key to identify the dump
