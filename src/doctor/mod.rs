@@ -1,11 +1,15 @@
-use eyre::{eyre, Ok, WrapErr};
+mod project;
 
-use crate::utils::which;
+use eyre::{eyre, WrapErr};
+use strum::IntoEnumIterator;
+
+use crate::{env::get_hbt_root, project::Project, utils::which};
 
 #[allow(dead_code)] // We expect this to be used in the future
 pub struct Health {
     env: HealthEnvironment,
     docker: HealthDocker,
+    projects: Vec<project::ProjectHealth>,
 }
 
 pub struct HealthEnvironment {
@@ -71,7 +75,33 @@ pub async fn check_health() -> eyre::Result<Health> {
 
     docker.draw();
 
-    Ok(Health { env, docker })
+    let mut projects = Vec::new();
+
+    println!("Projects:");
+    if let Ok(hbt_root) = get_hbt_root() {
+        for project in Project::iter() {
+            let Some(dir_name) = project.dir_name() else {
+                continue;
+            };
+
+            let dir = hbt_root.join(dir_name);
+            if let Err(e) = std::env::set_current_dir(&dir) {
+                println!("  {} - {e}", project.name());
+                continue;
+            }
+
+            let project_health = project::check_project_health(project, &dir).await?;
+            println!("");
+
+            projects.push(project_health);
+        }
+    }
+
+    Ok(Health {
+        env,
+        docker,
+        projects,
+    })
 }
 
 async fn docker_version() -> eyre::Result<Option<String>> {
