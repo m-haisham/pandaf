@@ -6,7 +6,7 @@ use strum::IntoEnumIterator;
 
 use crate::{
     docker, git,
-    project::{read_project_env, set_current_project, Project},
+    project::{read_project_env, Project},
 };
 
 pub async fn checkout(branch: Option<String>, migrate: bool) -> eyre::Result<()> {
