@@ -9,6 +9,7 @@ mod global;
 mod infra;
 mod kebab;
 mod project;
+mod setup;
 mod utils;
 
 use std::{
@@ -47,6 +48,9 @@ pub async fn main() -> eyre::Result<()> {
     match cli.command {
         Commands::Doctor => {
             doctor::check_health().await?;
+        }
+        Commands::Setup => {
+            setup::setup().await?;
         }
         Commands::Dump { key } => {
             set_current_infra()?;
@@ -219,7 +223,8 @@ pub async fn main() -> eyre::Result<()> {
             project_command(Project::Nest, command).await?;
         }
         Commands::Fallthrough(args) => {
-            let app = args.first()
+            let app = args
+                .first()
                 .cloned()
                 .ok_or_else(|| eyre::eyre!("No command provided"))?;
 

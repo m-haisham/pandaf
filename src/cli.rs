@@ -38,6 +38,8 @@ pub enum Commands {
     Dump { key: Kebab },
     /// Restore mysql databases
     Restore { key: Kebab },
+    /// Set up the development environment
+    Setup,
     /// Run a command for all projects
     All {
         #[command(subcommand)]
