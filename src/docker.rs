@@ -165,12 +165,24 @@ pub async fn compose_down(compose_file: &str, args: &[String]) -> eyre::Result<(
     cmd.args(["down"]);
     cmd.args(args);
 
-    cmd.status()
+    let output = cmd
+        .output()
         .await
         .map_err(|e| eyre!(e))
         .wrap_err("Failed to run docker-compose down")?;
 
-    Ok(())
+    let status = output.status;
+
+    if !status.success() {
+        let stderr = String::from_utf8(output.stderr)
+            .unwrap_or_else(|e| format!("Failed to convert stderr to string: {:?}", e))
+            .trim()
+            .to_string();
+
+        Err(eyre!("{}", stderr))
+    } else {
+        Ok(())
+    }
 }
 
 pub async fn compose_exec(compose_file: &str, args: &[&str]) -> eyre::Result<()> {
