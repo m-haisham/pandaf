@@ -19,6 +19,23 @@ pub async fn checkout(branch_name: &str) -> eyre::Result<()> {
     Ok(())
 }
 
+/// Checkout the first branch in the list that exists in the project repository
+pub async fn checkout_first(branches: &[&str]) -> eyre::Result<()> {
+    for branch in branches {
+        let checkout_result = checkout(branch).await;
+        match checkout_result {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                tracing::warn!("Failed to checkout branch: {}", e);
+            }
+        }
+    }
+
+    Err(eyre!(
+        "None of the branches exist in the project repository"
+    ))
+}
+
 pub async fn current_branch() -> eyre::Result<String> {
     let output = Command::new("git")
         .arg("branch")

@@ -44,7 +44,7 @@ pub async fn checkout(branch: Option<String>, migrate: bool) -> eyre::Result<()>
             .map_err(|e| eyre!(e))
             .wrap_err("Failed to set current project")?;
 
-        let checkout_result = git::checkout(&branch).await;
+        let checkout_result = git::checkout_first(&[branch.as_str(), "develop"]).await;
         if let Err(e) = checkout_result {
             tracing::warn!("Failed to checkout branch for project: {}", e);
             continue;
