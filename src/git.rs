@@ -221,3 +221,87 @@ pub async fn git_clone(url: &str, dir: &Path) -> eyre::Result<()> {
 
     Ok(())
 }
+
+#[derive(Debug)]
+pub enum GitChangeStatus {
+    Modified,
+    Added,
+    Deleted,
+    Renamed,
+    Copied,
+    UpdatedButUnmerged,
+    Untracked,
+    Unknown(String),
+}
+
+impl GitChangeStatus {
+    pub fn is_added(&self) -> bool {
+        matches!(self, GitChangeStatus::Added)
+    }
+
+    pub fn is_modified(&self) -> bool {
+        matches!(
+            self,
+            GitChangeStatus::Modified
+                | GitChangeStatus::UpdatedButUnmerged
+                | GitChangeStatus::Copied
+                | GitChangeStatus::Renamed
+        )
+    }
+
+    pub fn is_deleted(&self) -> bool {
+        matches!(self, GitChangeStatus::Deleted)
+    }
+}
+
+impl From<&str> for GitChangeStatus {
+    fn from(status: &str) -> Self {
+        match status {
+            "M" => GitChangeStatus::Modified,
+            "A" => GitChangeStatus::Added,
+            "D" => GitChangeStatus::Deleted,
+            "R" => GitChangeStatus::Renamed,
+            "C" => GitChangeStatus::Copied,
+            "U" => GitChangeStatus::UpdatedButUnmerged,
+            "??" => GitChangeStatus::Untracked,
+            _ => GitChangeStatus::Unknown(status.to_string()),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GitChange {
+    pub status: GitChangeStatus,
+    pub file: String,
+}
+
+pub async fn git_changes() -> eyre::Result<Vec<GitChange>> {
+    let output: std::process::Output = Command::new("git")
+        .arg("status")
+        .arg("--porcelain")
+        .output()
+        .await
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to get git status")?;
+
+    let output = String::from_utf8(output.stdout)
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to convert git changes to utf8")?;
+
+    let changes = output
+        .lines()
+        .map(|line| {
+            let (status, file) = line
+                .trim()
+                .split_once(' ')
+                .ok_or_else(|| eyre!("Failed to parse git status"))?;
+
+            Ok(GitChange {
+                status: status.into(),
+                file: file.to_owned(),
+            })
+        })
+        .collect::<eyre::Result<Vec<GitChange>>>()?;
+
+    Ok(changes)
+}
