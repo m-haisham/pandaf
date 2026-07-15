@@ -9,25 +9,26 @@ use crate::{
     ui::BrushContext,
 };
 
-pub async fn print_branches(mut context: AppContext) -> eyre::Result<()> {
+pub async fn print_branches(context: &AppContext) -> eyre::Result<()> {
     let current_project = detect_project()?;
     let current_branch = git::current_branch().await.ok();
 
     for project in Project::iter() {
         let project_dir = project.dir()?;
 
-        context
+        let (branch, commit) = context
             .working_dir
-            .change_dir(project_dir.clone())
-            .map_err(|e| eyre!(e))
-            .wrap_err("Failed to set current project")?;
+            .with_working_dir(&project_dir, async |_| {
+                let branch = git::current_branch()
+                    .await
+                    .map_err(|e| eyre!(e))
+                    .wrap_err("Failed to get current branch")?;
 
-        let branch = git::current_branch()
-            .await
-            .map_err(|e| eyre!(e))
-            .wrap_err("Failed to get current branch")?;
+                let commit = git::current_commit().await;
 
-        let commit = git::current_commit().await;
+                Ok((branch, commit))
+            })
+            .await?;
 
         let draw = BrushContext::new_from_context(&context);
 

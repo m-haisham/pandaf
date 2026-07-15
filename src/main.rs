@@ -80,7 +80,7 @@ pub async fn main() -> eyre::Result<()> {
             commands::restore_all_project_dbs(context, key).await?;
         }
         Commands::Branch => {
-            commands::print_branches(context).await?;
+            commands::print_branches(&context).await?;
         }
         Commands::Checkout { branch, migrate } => {
             commands::checkout(context, branch, migrate).await?

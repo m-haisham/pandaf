@@ -60,6 +60,11 @@ impl<'a> BrushContext<'a> {
         self.verbose > 0
     }
 
+    pub fn write_newline(&self) -> eyre::Result<()> {
+        self.term.write_line("")?;
+        Ok(())
+    }
+
     pub fn write_line(&self, message: &str) -> eyre::Result<()> {
         let indent = "  ".repeat(self.indent_level);
         self.term.write_line(&format!("{indent}{message}"))?;
@@ -71,6 +76,14 @@ impl<'a> BrushContext<'a> {
         let text = format!("{indent}{message}");
         self.term
             .write_line(&self.styles.error.apply_to(text).to_string())?;
+        Ok(())
+    }
+
+    pub fn write_warning(&self, message: &str) -> eyre::Result<()> {
+        let indent = "  ".repeat(self.indent_level);
+        let text = format!("{indent}{message}");
+        self.term
+            .write_line(&self.styles.warning.apply_to(text).to_string())?;
         Ok(())
     }
 }

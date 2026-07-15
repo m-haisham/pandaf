@@ -20,7 +20,7 @@ pub enum Repository {
     App,
     Nest,
     SoPackageSerializer,
-    ApiClient,
+    ApiClients,
 }
 
 impl Repository {
@@ -41,7 +41,7 @@ impl Repository {
             Repository::SoPackageSerializer => {
                 "git@bitbucket.org:humtravel/so-package-serializer.git"
             }
-            Repository::ApiClient => "git@bitbucket.org:humtravel/api-client.git",
+            Repository::ApiClients => "git@bitbucket.org:humtravel/api-clients.git",
         }
     }
 
@@ -58,7 +58,7 @@ impl Repository {
             Repository::App => "hummingbird-app",
             Repository::Nest => "nest-app",
             Repository::SoPackageSerializer => "so-package-serializer",
-            Repository::ApiClient => "api-client",
+            Repository::ApiClients => "api-clients",
         }
     }
 }
@@ -80,7 +80,7 @@ impl Display for Repository {
                 Repository::App => "app",
                 Repository::Nest => "nest",
                 Repository::SoPackageSerializer => "so-package-serializer",
-                Repository::ApiClient => "api-client",
+                Repository::ApiClients => "api-clients",
             }
         )
     }
