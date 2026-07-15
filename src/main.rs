@@ -119,6 +119,9 @@ pub async fn main() -> eyre::Result<()> {
                 snapshot::restore_snapshot(context, &path).await?;
             }
         },
+        Commands::Redis { rest } => {
+            docker::redis(rest).await?;
+        }
         Commands::Config { key, value } => match (key, value) {
             (Some(key), Some(value)) => {
                 set_config(key, value)?;

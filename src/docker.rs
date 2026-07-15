@@ -198,3 +198,23 @@ pub async fn compose_exec(compose_file: &str, args: &[&str]) -> eyre::Result<()>
 
     Ok(())
 }
+
+pub async fn redis(args: Vec<String>) -> eyre::Result<()> {
+    let hbt_docker_root = get_hbt_docker_root()?;
+    let compose_config_file = hbt_docker_root.join("hbt-infra").join("docker-compose.yml");
+    let Some(compose_config_path) = compose_config_file.to_str() else {
+        return Err(eyre!("Failed to convert compose path to string"));
+    };
+
+    let mut cmd = tokio::process::Command::new("docker-compose");
+    cmd.args(["-f", compose_config_path]);
+    cmd.args(["exec", "hbt-service-redis", "redis-cli"]);
+    cmd.args(args);
+
+    cmd.status()
+        .await
+        .map_err(|e| eyre!(e))
+        .wrap_err("Failed to run docker-compose exec")?;
+
+    Ok(())
+}

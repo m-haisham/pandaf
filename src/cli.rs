@@ -68,6 +68,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: SnapshotCommands,
     },
+    /// Run redis commands
+    Redis {
+        #[arg(allow_hyphen_values = true, hide = true)]
+        rest: Vec<String>,
+    },
     /// Set or get a configuration value
     ///
     /// If no key is provided, all configuration values will be displayed.
