@@ -4,7 +4,7 @@
   "description": "PDF generation service — a consumer of @hshm/vuedo",
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 5173 & VITE_PID=$!; tsx watch --ignore \"**/*.timestamp-*.mjs\" src/server.ts & TSX_PID=$!; trap 'kill $VITE_PID $TSX_PID 2>/dev/null' EXIT INT TERM; wait",
+    "dev": "concurrently \"vite dev --port 5173\" \"tsx watch --ignore '**/*.timestamp-*.mjs' src/server.ts\"",
     "build": "vite build",
     "start": "NODE_ENV=production tsx src/server.ts",
     "typecheck": "vue-tsc --noEmit",
@@ -39,6 +39,7 @@
     "@types/node": "^20.0.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/server-renderer": "^3.4.0",
+    "concurrently": "^10.0.3",
     "pdf-parse": "^1.1.1",
     "puppeteer-core": "^25.3.0",
     "tsx": "^4.0.0",
