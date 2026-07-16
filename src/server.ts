@@ -21,7 +21,9 @@ const tailwindEntry = path.resolve("assets/app.css");
 
 export const vuedo = createVuedo<PdfTemplateProps>({
   templatesDir,
-  driver: new GotenbergDriver(process.env.GOTENBERG_URL ?? "http://localhost:3000"),
+  driver: new GotenbergDriver(
+    process.env.GOTENBERG_URL ?? "http://localhost:3000",
+  ),
   tailwind: tailwindEntry,
   manifestPath: path.resolve("dist/pdf-manifest.json"),
 });
@@ -199,12 +201,20 @@ export const app = new Elysia({ adapter: node() })
       },
     },
   )
-  .get("/", () => {
-    return new Response(null, {
-      status: 302,
-      headers: { location: "/docs" },
-    });
-  })
+  .get(
+    "/",
+    () => {
+      return new Response(null, {
+        status: 302,
+        headers: { location: "/docs" },
+      });
+    },
+    {
+      detail: {
+        hide: true,
+      },
+    },
+  )
   .listen(8080);
 
 if (import.meta.url === `file://${process.argv[1]}`) {
