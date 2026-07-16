@@ -8,7 +8,7 @@ import {
 import { loadManifest, type PdfManifest } from "./manifest.js";
 import { renderComponent } from "./render-component.js";
 import { sendToGotenberg } from "./gotenberg.js";
-import { wrapHtml } from "./html.js";
+import { wrapBody, wrapHeader, wrapFooter } from "./html.js";
 import { inlineCssAssets, inlineHtmlAssets } from "./inline-assets.js";
 import type { Discovery } from "./discover.js";
 
@@ -114,7 +114,12 @@ export function createVuedo<
 
   // Renders a single template (by dotted name) to a wrapped HTML string. Picks
   // the dev ssrLoadModule path or the pre-compiled prod module accordingly.
-  async function renderOne(name: string, data: unknown): Promise<string> {
+  // `section` selects the wrapper tuning (body vs header vs footer).
+  async function renderOne(
+    name: string,
+    data: unknown,
+    section: "body" | "header" | "footer" = "body",
+  ): Promise<string> {
     let inner: string;
     if (isDev) {
       await ensureDev();
@@ -130,7 +135,9 @@ export function createVuedo<
     // Base64 so Gotenberg needs no network. Prod builds already inline via the
     // Vite plugin, so this is mostly a no-op there.
     const inlined = await inlineHtmlAssets(inner, assetsDir);
-    return wrapHtml(inlined, options.css);
+    if (section === "header") return wrapHeader(inlined, options.css);
+    if (section === "footer") return wrapFooter(inlined, options.css);
+    return wrapBody(inlined, options.css);
   }
 
   async function renderHtml(template: any, data: any): Promise<string> {
@@ -142,11 +149,11 @@ export function createVuedo<
     const body = await renderOne(template, data.body);
     const header =
       layout.header && data.header !== undefined
-        ? await renderOne(layout.header, data.header)
+        ? await renderOne(layout.header, data.header, "header")
         : null;
     const footer =
       layout.footer && data.footer !== undefined
-        ? await renderOne(layout.footer, data.footer)
+        ? await renderOne(layout.footer, data.footer, "footer")
         : null;
     const sections = [
       header ? `<div class="vuedo-header">${header}</div>` : "",
@@ -161,11 +168,11 @@ export function createVuedo<
     const body = await renderOne(template, data.body);
     const header =
       layout.header && data.header !== undefined
-        ? await renderOne(layout.header, data.header)
+        ? await renderOne(layout.header, data.header, "header")
         : undefined;
     const footer =
       layout.footer && data.footer !== undefined
-        ? await renderOne(layout.footer, data.footer)
+        ? await renderOne(layout.footer, data.footer, "footer")
         : undefined;
     return sendToGotenberg(options.gotenbergUrl, {
       body,
