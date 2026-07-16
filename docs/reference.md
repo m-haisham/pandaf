@@ -236,7 +236,7 @@ export function createVuedo(options: VuedoOptions): Vuedo {
   return {
     async renderHtml(template, data) {
       const render = await getRender();
-      return wrapHtml(await render(template, data));
+      return wrapBody(await render(template, data));
     },
     async generatePdf(template, data) {
       const layout = await layoutOf(template);
