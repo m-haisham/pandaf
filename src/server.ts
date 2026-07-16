@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { node } from "@elysiajs/node";
 import path from "node:path";
 import { createVuedo, GotenbergDriver } from "@hshm/vuedo";
-import { swagger } from "@elysiajs/swagger";
+import { openapi } from "@elysiajs/openapi";
 import type { PdfTemplateProps } from "./generated/pdf-templates";
 
 // This root package is a *consumer* of @hshm/vuedo — an ordinary Elysia
@@ -21,7 +21,9 @@ const tailwindEntry = path.resolve("assets/app.css");
 
 export const vuedo = createVuedo<PdfTemplateProps>({
   templatesDir,
-  driver: new GotenbergDriver(process.env.GOTENBERG_URL ?? "http://localhost:3000"),
+  driver: new GotenbergDriver(
+    process.env.GOTENBERG_URL ?? "http://localhost:3000",
+  ),
   tailwind: tailwindEntry,
   manifestPath: path.resolve("dist/pdf-manifest.json"),
 });
@@ -107,7 +109,7 @@ function pdfResponse(stream: ReadableStream, filename: string): Response {
 
 export const app = new Elysia({ adapter: node() })
   .use(
-    swagger({
+    openapi({
       path: "/docs",
       specPath: "/openapi.json",
       documentation: {
@@ -135,7 +137,7 @@ export const app = new Elysia({ adapter: node() })
           },
         ],
       },
-      scalarConfig: {
+      scalar: {
         spec: { url: "/openapi.json" },
         theme: "default",
         metaData: {
@@ -199,12 +201,20 @@ export const app = new Elysia({ adapter: node() })
       },
     },
   )
-  .get("/", () => {
-    return new Response(null, {
-      status: 302,
-      headers: { location: "/docs" },
-    });
-  })
+  .get(
+    "/",
+    () => {
+      return new Response(null, {
+        status: 302,
+        headers: { location: "/docs" },
+      });
+    },
+    {
+      detail: {
+        hide: true,
+      },
+    },
+  )
   .listen(8080);
 
 if (import.meta.url === `file://${process.argv[1]}`) {
