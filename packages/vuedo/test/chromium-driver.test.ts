@@ -39,11 +39,18 @@ vi.mock("puppeteer", () => {
       closeBrowser();
       return Promise.resolve();
     },
+    disconnect: () => {
+      disconnectBrowser();
+      return Promise.resolve();
+    },
   };
   return {
     launch: () => Promise.resolve(browser),
+    connect: () => Promise.resolve(browser),
   };
 });
+
+const disconnectBrowser = vi.fn();
 
 // Import after mocking so the dynamic import resolves to the mock.
 const { ChromiumDriver } = await import("../src/drivers/chromium.js");
@@ -98,5 +105,15 @@ describe("ChromiumDriver", () => {
     expect(closeBrowser).not.toHaveBeenCalled();
     await driver.close();
     expect(closeBrowser).toHaveBeenCalledOnce();
+  });
+
+  it("connects to a remote browser and detaches (not closes) it on close()", async () => {
+    const driver = new ChromiumDriver({ browserWSEndpoint: "ws://chromium:3000" });
+    await driver.render({ body: "<html>b</html>" });
+    // No local launch — connect() path was used.
+    expect(closeBrowser).not.toHaveBeenCalled();
+    await driver.close();
+    expect(disconnectBrowser).toHaveBeenCalledOnce();
+    expect(closeBrowser).not.toHaveBeenCalled();
   });
 });

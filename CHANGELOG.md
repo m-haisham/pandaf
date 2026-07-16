@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **vuedo:** `ChromiumDriver` can now connect to a **remote** Chromium by passing
+  `browserWSEndpoint` (e.g. `ws://host:3000`) or `browserURL` (e.g.
+  `http://host:9222`) — for browserless.io or a `browserless/chromium` Docker
+  container. When set, it `puppeteer.connect()`s instead of launching locally and
+  detaches (without closing) the browser on `close()`.
 - **vuedo:** Pluggable PDF render drivers behind an abstract `PdfDriver` interface.
   Built-in `GotenbergDriver` (remote Chromium service) and `ChromiumDriver`
   (local Puppeteer) — implement `PdfDriver` to add new backends (e.g. a cloud

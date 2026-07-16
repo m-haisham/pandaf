@@ -1,9 +1,19 @@
 import { PdfDriver, type DriverRenderInput } from "./types.js";
 
 export interface ChromiumDriverOptions {
-  /** Path to a Chrome/Chromium executable. Falls back to Puppeteer's bundled browser. */
+  /**
+   * Connect to a **remote** Chromium instead of launching a local one. Provide
+   * either a WebSocket endpoint (`ws://host:3000`) or an HTTP frontend URL
+   * (`http://host:9222`) — typically a browserless.io or `browserless/chromium`
+   * Docker container. When set, `launchArgs`/`executablePath` are ignored and
+   * the driver calls `puppeteer.connect()` rather than `puppeteer.launch()`.
+   */
+  browserWSEndpoint?: string;
+  /** Alias for `browserWSEndpoint` accepting an HTTP `browserURL` too. */
+  browserURL?: string;
+  /** Path to a Chrome/Chromium executable (local launch only). Falls back to Puppeteer's bundled browser. */
   executablePath?: string;
-  /** Launch args passed to the browser (e.g. sandbox toggles in containers). */
+  /** Launch args passed to the browser (e.g. sandbox toggles in containers). Ignored when connecting remotely. */
   launchArgs?: string[];
   /** Reuse a single browser across renders; closed in `close()`. Default true. */
   reuseBrowser?: boolean;
@@ -13,6 +23,14 @@ export interface ChromiumDriverOptions {
 // separate service — it launches (or connects to) a headless Chromium and
 // prints the composed document via the DevTools `Page.printToPDF` protocol.
 //
+// Two modes:
+//   • **Local** (default): `puppeteer.launch()` starts a bundled or
+//     `executablePath` Chromium.
+//   • **Remote**: when `browserWSEndpoint`/`browserURL` is supplied, the driver
+//     `puppeteer.connect()`s to an already-running Chromium — e.g. a
+//     `browserless/chromium` Docker container or browserless.io — so no browser
+//     binary is needed on the host.
+//
 // Puppeteer is an OPTIONAL peer dependency: it is only imported lazily, inside
 // this driver, so consumers who only ever use Gotenberg never need to install
 // it. The library never imports it at module top level.
@@ -20,15 +38,22 @@ export class ChromiumDriver extends PdfDriver {
   readonly name = "chromium";
 
   private browser: any = null;
+  private readonly browserWSEndpoint?: string;
+  private readonly browserURL?: string;
   private readonly executablePath?: string;
   private readonly launchArgs: string[];
   private readonly reuseBrowser: boolean;
+  /** True when connected to a remote browser we should NOT close on `close()`. */
+  private readonly connected: boolean;
 
   constructor(options: ChromiumDriverOptions = {}) {
     super();
+    this.browserWSEndpoint = options.browserWSEndpoint;
+    this.browserURL = options.browserURL;
     this.executablePath = options.executablePath;
     this.launchArgs = options.launchArgs ?? ["--no-sandbox", "--disable-setuid-sandbox"];
     this.reuseBrowser = options.reuseBrowser ?? true;
+    this.connected = Boolean(this.browserWSEndpoint || this.browserURL);
   }
 
   private async getPuppeteer(): Promise<any> {
@@ -50,11 +75,19 @@ export class ChromiumDriver extends PdfDriver {
   private async getBrowser(): Promise<any> {
     if (this.browser) return this.browser;
     const puppeteer = await this.getPuppeteer();
-    this.browser = await puppeteer.launch({
-      headless: true,
-      executablePath: this.executablePath,
-      args: this.launchArgs,
-    });
+    if (this.connected) {
+      // Attach to a remote browser (browserless, Docker Chromium, etc.).
+      this.browser = await puppeteer.connect({
+        browserWSEndpoint: this.browserWSEndpoint,
+        browserURL: this.browserURL,
+      });
+    } else {
+      this.browser = await puppeteer.launch({
+        headless: true,
+        executablePath: this.executablePath,
+        args: this.launchArgs,
+      });
+    }
     return this.browser;
   }
 
@@ -112,7 +145,13 @@ export class ChromiumDriver extends PdfDriver {
 
   async close(): Promise<void> {
     if (this.browser) {
-      await this.browser.close();
+      if (this.connected) {
+        // We attached to a remote browser — detach without killing it so the
+        // host (browserless/Docker) keeps serving other clients.
+        await this.browser.disconnect();
+      } else {
+        await this.browser.close();
+      }
       this.browser = null;
     }
   }
