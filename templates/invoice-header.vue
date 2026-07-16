@@ -1,6 +1,6 @@
 <template>
   <header
-    class="invoice-header bg-slate-900 text-white px-10 py-6 flex items-start justify-between"
+    class="invoice-header bg-slate-900 text-white px-10 pt-8 pb-6 flex items-start justify-between"
   >
     <div>
       <div class="text-2xl font-bold tracking-tight">{{ companyName }}</div>

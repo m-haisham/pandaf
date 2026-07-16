@@ -19,15 +19,13 @@ export function wrapBody(content: string, css = ""): string {
  * Header: wrapped as its own standalone Gotenberg header document.
  *
  * Gotenberg renders the header HTML in a narrow page-box above the body and
- * applies its own default margins (the body's `marginTop` is reserved for it).
- * The pdf-test experiment showed two tuning needs:
- *
- *  1. A negative margin is required to pull header content up flush against
- *     the top of the reserved header band, since Chromium otherwise leaves a
- *     gap between the header box and the page content.
- *  2. `!important` overrides are needed to neutralize inherited/reset styles
- *     (e.g. a `<p>` default margin, box-sizing) that would otherwise push the
- *     header out of the visible band.
+ * applies Chromium's default header styling. Chromium's own header/footer
+ * template reserves a `padding-top: 15pt` on the `#header` box and a
+ * `padding-bottom: 15pt` on `#footer` (see the linked `print_header_footer_
+ * template_page.html`). That default padding pushes the user's header content
+ * down from the top of the reserved band (and footer content up from the
+ * bottom). We neutralize it with `padding-top: 0` on the header so content
+ * sits flush against the top, and likewise `padding-bottom: 0` on the footer.
  *
  * The base reset below additionally:
  *  - Forces `box-sizing: border-box` + zeroed margin/padding on every element
@@ -40,17 +38,12 @@ export function wrapBody(content: string, css = ""): string {
  *    background/border colors survive headless-Chromium's print color stripping.
  *  - Forces `header { width: 100% }` so the top-level container spans the full
  *    page width rather than shrinking to its content.
- *
- * The values below are conservative starting points; revisit after measuring
- * against a real Gotenberg run (see .context/todos.md).
  */
 export function wrapHeader(content: string, css = ""): string {
   const reset = `
     <style>
       * {
         box-sizing: border-box !important;
-        margin: 0 !important;
-        padding: 0 !important;
         font-size: 16px !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
@@ -61,11 +54,11 @@ export function wrapHeader(content: string, css = ""): string {
       }
       header {
         width: 100% !important;
+        padding-top: 0 !important; /* neutralize Chromium's default 15pt header padding */
       }
-      body {
-        margin-top: -8mm !important; /* pull flush into the reserved header band */
+      #header {
+        padding-top: 0 !important;
       }
-      p, h1, h2, h3, h4, h5, h6 { margin: 0 !important; }
     </style>`;
   const style = css ? `<style>${css}</style>` : "";
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${reset}${style}</head><body>${content}</body></html>`;
@@ -74,11 +67,12 @@ export function wrapHeader(content: string, css = ""): string {
 /**
  * Footer: wrapped as its own standalone Gotenberg footer document.
  *
- * Mirrors `wrapHeader`'s pull-down tuning (negative margin into the reserved
- * footer band) and the same base reset: Tailwind utilities need a predictable
- * box model + 16px root font-size to resolve `rem` correctly, and
- * print-color-adjust keeps background/border colors from being stripped by
- * headless Chromium. `footer { width: 100% }` ensures the container spans the
+ * Mirrors `wrapHeader`'s tuning: neutralizes Chromium's default
+ * `padding-bottom: 15pt` on the footer box so user content sits flush against
+ * the bottom of the reserved footer band, plus the same base reset (predictable
+ * box model + 16px root font-size for correct `rem` resolution, and
+ * print-color-adjust to keep background/border colors from being stripped by
+ * headless Chromium). `footer { width: 100% }` ensures the container spans the
  * full page width.
  */
 export function wrapFooter(content: string, css = ""): string {
@@ -86,8 +80,6 @@ export function wrapFooter(content: string, css = ""): string {
     <style>
       * {
         box-sizing: border-box !important;
-        margin: 0 !important;
-        padding: 0 !important;
         font-size: 16px !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
@@ -98,11 +90,11 @@ export function wrapFooter(content: string, css = ""): string {
       }
       footer {
         width: 100% !important;
+        padding-bottom: 0 !important; /* neutralize Chromium's default 15pt footer padding */
       }
-      body {
-        margin-top: -4mm !important; /* pull flush into the reserved footer band */
+      #footer {
+        padding-bottom: 0 !important;
       }
-      p, h1, h2, h3, h4, h5, h6 { margin: 0 !important; }
     </style>`;
   const style = css ? `<style>${css}</style>` : "";
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${reset}${style}</head><body>${content}</body></html>`;

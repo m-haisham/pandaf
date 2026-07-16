@@ -22,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   margin pull into their reserved Gotenberg band; `wrapHtml` is now a deprecated
   alias for `wrapBody`.
 
+- **vuedo:** Header/footer now neutralize Chromium's default `padding-top`
+  (15pt) / `padding-bottom` (15pt) so user content sits flush against the top of
+  the header band and the bottom of the footer band, removing the negative-margin
+  pull hack that pushed content further down.
+
+- **vuedo:** Header/footer template files now carry their own edge padding
+  (header `pt-8`, footer `pb-8` for the invoice; `pt-2`/`pb-2` for the pos
+  receipt) so the three sections align with balanced inset spacing instead of
+  hugging the page edge. The package no longer injects section padding itself.
+
 ### Added
 
 - **vuedo:** `ChromiumDriver` can now connect to a **remote** Chromium by passing
