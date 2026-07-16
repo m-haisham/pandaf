@@ -90,7 +90,4 @@ export function wrapFooter(content: string, css = ""): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${reset}${style}</head><body>${content}</body></html>`;
 }
 
-/** @deprecated use `wrapBody` (body-only) or `wrapHeader`/`wrapFooter`. */
-export function wrapHtml(content: string, css = ""): string {
-  return wrapBody(content, css);
-}
+

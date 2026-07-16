@@ -46,8 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **vuedo:** Split HTML wrapping into per-section `wrapBody`, `wrapHeader`, and
   `wrapFooter` functions. Header/footer get `!important` resets and a negative
-  margin pull into their reserved Gotenberg band; `wrapHtml` is now a deprecated
-  alias for `wrapBody`.
+  margin pull into their reserved Gotenberg band; the deprecated `wrapHtml`
+  alias has been removed — use `wrapBody` instead.
 
 - **vuedo:** Header/footer template files now carry their own edge padding
   (header `pt-8`, footer `pb-8` for the invoice; `pt-2`/`pb-2` for the pos

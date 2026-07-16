@@ -55,7 +55,7 @@ discover.ts         file-based layout discovery (body + paired header/footer)
 manifest.ts         writeManifest / loadManifest (entries + layouts)
 render-component.ts  shared Vue SSR (createSSRApp + renderToString)
 gotenberg.ts        Gotenberg HTTP client (returns a ReadableStream)
-html.ts             wrapHtml() document shell
+html.ts             wrapBody() / wrapHeader() / wrapFooter() document shells
 types.ts            generateTypes() — emits the inferred PdfTemplateProps
 vite-plugin.ts      exported as '@hshm/vuedo/vite'
 cli.ts              exported as bin 'vuedo'
