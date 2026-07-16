@@ -9,7 +9,9 @@
     "start": "NODE_ENV=production tsx src/server.ts",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "infra:up": "docker-compose up -d",
+    "infra:down": "docker-compose down"
   },
   "keywords": [
     "pdf",

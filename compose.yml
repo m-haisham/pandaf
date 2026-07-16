@@ -1,0 +1,41 @@
+services:
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: gotenberg
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - dev
+
+  browserless:
+    image: browserless/chrome:latest
+    container_name: browserless
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - CONCURRENT=5
+      - MAX_QUEUE_LENGTH=10
+      - CONNECTION_TIMEOUT=60000
+    networks:
+      - dev
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - dev
+
+volumes:
+  redis_data:
+
+networks:
+  dev:
+    driver: bridge
