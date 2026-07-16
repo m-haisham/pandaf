@@ -148,8 +148,15 @@ export abstract class PdfDriver {
 export class GotenbergDriver extends PdfDriver {        // remote Chromium service
   constructor(baseUrl: string);
 }
-export class ChromiumDriver extends PdfDriver {         // local Puppeteer
+export class ChromiumDriver extends PdfDriver {         // local or remote Puppeteer
   constructor(options?: ChromiumDriverOptions);
+}
+// ChromiumDriverOptions:
+//   browserWSEndpoint?: string;  // ws://host:3000 — connect to remote Chromium
+//   browserURL?: string;         // http://host:9222 — connect via HTTP frontend
+//   executablePath?: string;     // local launch only
+//   launchArgs?: string[];       // local launch only
+//   reuseBrowser?: boolean;      // default true
 }
 
 export interface Vuedo<
@@ -374,6 +381,9 @@ const vuedo = createVuedo({
   templatesDir: new URL('./templates', import.meta.url).pathname,
   driver: new GotenbergDriver(process.env.GOTENBERG_URL!),
   // or: driver: new ChromiumDriver()  // local Puppeteer, no separate service
+  // or: driver: new ChromiumDriver({  // remote Chromium (browserless/Docker)
+  //        browserWSEndpoint: process.env.CHROMIUM_WS_URL,
+  //      })
 });
 
 new Elysia()
