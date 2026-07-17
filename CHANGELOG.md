@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **vuedo:** CSS is now compiled via `@tailwindcss/vite` Vite plugin instead of a
+  custom `@tailwindcss/node` pipeline. The plugin integrates with the host's
+  Vite dev server for live CSS and compiles CSS during `vite build`, saving the
+  result to `<outDir>/vuedo.css`. Removes `tailwindcss`, `@tailwindcss/node`,
+  and `@tailwindcss/oxide` dependencies — replaced by `@tailwindcss/vite`.
+
+### Changed
+
+- **vuedo:** The `tailwind` option on `createVuedo` is removed. Use `css` (path
+  to the pre-compiled `dist/vuedo.css` for production, or a raw CSS string) and
+  `cssEntry` (path to the Tailwind entry, e.g. `assets/app.css`, for
+  dev-mode Vite compilation). The `@hshm/vuedo/vite` plugin accepts a new
+  `cssEntry` option for configuring the Tailwind entry.
+
+- **vuedo:** Consumers must add `@tailwindcss/vite` to their Vite config
+  alongside the `@hshm/vuedo/vite` plugin. The library no longer owns Tailwind
+  compilation — the Vite plugin handles it, which enables importing UI libraries
+  with their own Tailwind styles.
+
+### Added
+
 - **repo:** Migrated to Turborepo for task orchestration — `turbo.json` defines the
   pipeline (`build` → `^build`, `dev`, `test`, `typecheck`, etc.) with local
   caching of `dist/**` outputs. Root scripts now delegate to `turbo` instead of

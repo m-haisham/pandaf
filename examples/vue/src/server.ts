@@ -5,26 +5,13 @@ import { createVuedo, GotenbergDriver } from "@hshm/vuedo";
 import { openapi } from "@elysiajs/openapi";
 import type { PdfTemplateProps } from "./generated/vuedo";
 
-// This root package is a *consumer* of @hshm/vuedo — an ordinary Elysia
-// backend that owns its own routing. The library does the Vue SSR + Gotenberg
-// work behind createVuedo(); layout (body + paired header/footer) is resolved
-// by naming convention, and the generated PdfTemplateProps keeps each template's
-// data type-checked. Consumers expose one typed route per template (not a
-// generic public endpoint) so Elysia's TypeBox validation guards the body,
-// header and footer data at the edge.
 const templatesDir = path.resolve("templates");
-
-// Tailwind is compiled by the package itself from this entry (scoped to the
-// PDF templates + assets by default — the whole service needs no Tailwind build
-// step). The consumer tunes scan scope via `@source` in this file.
-const tailwindEntry = path.resolve("assets/app.css");
 
 export const vuedo = createVuedo<PdfTemplateProps>({
   templatesDir,
   driver: new GotenbergDriver(
     process.env.GOTENBERG_URL ?? "http://localhost:3000",
   ),
-  tailwind: tailwindEntry,
   manifestPath: path.resolve("dist/pdf-manifest.json"),
 });
 

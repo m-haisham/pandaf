@@ -60,26 +60,26 @@ Unchanged from the original spec: web technologies (flexbox, grid, reactive data
 
 Assets stay Base64-inlined into the SSR HTML string per the original spec — deterministic, no network fetch during Gotenberg conversion.
 
-### 3.5 Tailwind v4, Compiled by the Package
+### 3.5 Tailwind v4, Compiled by the Vite Plugin
 
-**Decision:** `@hshm/vuedo` compiles Tailwind v4 itself. A consumer passes the
-path to their own CSS entry (their tunable `app.css`, which `@import
-"tailwindcss";`s and may declare `@theme` / `@source` directives) via the
-`tailwind` option, and the library produces the final stylesheet — scoped to the
-PDF templates and assets only.
+**Decision:** Tailwind CSS is compiled via the `@tailwindcss/vite` Vite plugin,
+integrated with the host's Vite config. In dev mode, the CSS is served live
+through Vite with HMR. During `vite build`, the compiled CSS is saved to
+`<outDir>/vuedo.css` alongside the manifest and SSR modules. At runtime,
+`createVuedo({ css: "dist/vuedo.css" })` inlines the pre-compiled CSS into
+every rendered section.
 
-**Justification:** The original design forced every consumer to run a separate
-`tailwindcss` build step (`build:css` / `dev` watch scripts) and to install
-Tailwind in their own service. That is build-tooling the library can own
-transparently. The package bundles `tailwindcss` + `@tailwindcss/node`, so the
-consumer needs neither installed. Compilation scans only `templatesDir` and
-`assetsDir` (the package adds these globs automatically), so we capture *relevant*
-styles, not whatever the consumer's whole service happens to use; the consumer
-tunes scope further with `@source` / `@source not` in their entry. The result is
-inlined by `wrapBody`/`wrapHeader`/`wrapFooter` exactly like an explicit `css`
-string, and is cached across renders (invalidated on file change). A consumer who
-prefers to keep their own Tailwind build can still pass a precompiled `css`
-string instead.
+**Justification:** The previous design compiled Tailwind with a custom
+`@tailwindcss/node` pipeline owned by the package. This prevented consumers
+from importing UI libraries whose Tailwind behaviour differs from what the
+package's scanner captures, and required bundling `tailwindcss`,
+`@tailwindcss/node`, and `@tailwindcss/oxide` as dependencies. Using the
+standard `@tailwindcss/vite` plugin gives consumers a standard Vite CSS
+pipeline — they can import UI libraries, use `@source` directives, and get
+behaviour identical to their own Vite-based apps. The plugin generates CSS
+during `closeBundle` by spinning up a temporary middleware-mode Vite server
+with `@tailwindcss/vite` and calling `ssrLoadModule` on the user's CSS entry
+with `?inline`, then writing the result.
 
 ## 4. Public API & Package Layout
 
@@ -91,12 +91,19 @@ string instead.
 │   ├── index.ts          # createVuedo() — the only required import for consumers
 │   ├── renderer.ts        # dev vs. prod render strategy (mirrors the old server.ts branch, §4.3)
 │   ├── dev-registry.ts     # module-level slot the Vite plugin writes into, core reads from
+│   ├── discover.ts         # file-based layout discovery (body + paired header/footer)
 │   ├── manifest.ts         # reads pdf-manifest.json written by the plugin/CLI at build time
+│   ├── html.ts             # wrapBody / wrapHeader / wrapFooter document shells
+│   ├── types.ts            # generateTypes() — emits the inferred PdfTemplateProps
 │   ├── drivers/            # pluggable PDF backends (the only thing that touches Chromium)
 │   │   ├── types.ts         # PdfDriver abstract class + DriverRenderInput
 │   │   ├── gotenberg.ts     # GotenbergDriver — remote Chromium service
 │   │   ├── chromium.ts      # ChromiumDriver — local Puppeteer
+│   │   ├── measurement.ts   # ChromiumMeasurer + resolveMargins
 │   │   └── index.ts         # re-exports
+│   ├── cache/               # pluggable cache backends
+│   ├── inline-assets.ts     # Vite plugin for Base64 asset inlining
+│   ├── render-component.ts  # shared Vue SSR (createSSRApp + renderToString)
 │   ├── vite-plugin.ts      # exported as '@hshm/vuedo/vite'
 │   └── cli.ts              # exported as bin `vuedo`
 ├── package.json             # exports map below
@@ -132,8 +139,8 @@ export interface VuedoOptions {
   measurer?: ChromiumMeasurer;    // optional — pre-flight DOM measurement of header/footer heights
   mode?: 'development' | 'production';   // default: derived from NODE_ENV
   manifestPath?: string;           // default: '<templatesDir>/../dist/pdf-manifest.json'
-  css?: string;                    // optional — raw CSS inlined into every section
-  tailwind?: string | { entry: string; sources?: SourceEntry[] }; // optional — Tailwind v4 entry compiled by the package
+  css?: string;                    // optional — pre-compiled CSS file path (e.g. dist/vuedo.css) or raw CSS string, inlined into every section
+  cssEntry?: string;               // optional — path to the Tailwind v4 CSS entry (e.g. assets/app.css) for dev-mode Vite compilation
   assetsDir?: string;              // optional — folder of static assets inlined as Base64 (default: <templatesDir>/../assets)
   cache?: Cache;                   // optional — cache backend for memoizing renders, Tailwind compilation, etc.
 }
@@ -311,11 +318,18 @@ Two paths, same output: a `pdf-manifest.json` mapping template name → compiled
 ```ts
 // vite.config.ts (host app)
 import { defineConfig } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
+import vue from '@vitejs/plugin-vue';
 import { vuedo } from '@hshm/vuedo/vite';
 
 export default defineConfig({
   plugins: [
-    vuedo({ templatesDir: './templates' }),
+    tailwindcss(),
+    vue(),
+    vuedo({
+      templatesDir: './templates',
+      cssEntry: 'assets/app.css',   // optional — Tailwind CSS entry for dev + build CSS generation
+    }),
   ],
 });
 ```
@@ -379,10 +393,7 @@ import { createVuedo, GotenbergDriver } from '@hshm/vuedo';
 const vuedo = createVuedo({
   templatesDir: new URL('./templates', import.meta.url).pathname,
   driver: new GotenbergDriver(process.env.GOTENBERG_URL!),
-  // or: driver: new ChromiumDriver()  // local Puppeteer, no separate service
-  // or: driver: new ChromiumDriver({  // remote Chromium (browserless/Docker)
-  //        browserWSEndpoint: process.env.CHROMIUM_WS_URL,
-  //      })
+  css: new URL('./dist/vuedo.css', import.meta.url).pathname,
 });
 
 new Elysia()

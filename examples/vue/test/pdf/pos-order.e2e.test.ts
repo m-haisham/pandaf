@@ -44,6 +44,7 @@ describe.skipIf(!gotenbergAvailable)(
         driver: new GotenbergDriver(GOTENBERG_URL),
         mode: "production",
         manifestPath: path.resolve("dist/pdf-manifest.json"),
+        css: path.resolve("dist/vuedo.css"),
       });
 
       const stream = await kit.generatePdf("pos.pos-order", {

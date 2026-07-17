@@ -1,16 +1,11 @@
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import {
-  getDevRenderer,
-  closeOwnedRenderer,
-  type RenderFn,
+  VuedoRenderer,
+  createDevRenderer,
+  createProdRenderer,
 } from "./renderer.js";
-import { loadManifest, type PdfManifest } from "./manifest.js";
-import { renderComponent } from "./render-component.js";
 import { wrapBody, wrapHeader, wrapFooter } from "./html.js";
 import { inlineCssAssets, inlineHtmlAssets } from "./inline-assets.js";
-import { TailwindCompiler, type TailwindOptions } from "./tailwind.js";
-import type { Discovery } from "./discover.js";
 import {
   type PdfDriver,
   GotenbergDriver,
@@ -22,85 +17,60 @@ import { Cache, NoopCache } from "./cache/index.js";
 export interface VuedoOptions {
   /** Folder of `.vue` templates. Defaults to `<cwd>/templates`. */
   templatesDir?: string;
-  /**
-   * The PDF backend to render with. Required. Two are built in:
-   * `GotenbergDriver` (remote Chromium service) and `ChromiumDriver` (local
-   * Puppeteer). Implement `PdfDriver` to add your own.
-   */
+  /** The PDF backend to render with. Required. */
   driver?: PdfDriver;
-  /**
-   * The measurer to use for pre-flight DOM measurement of header/footer
-   * heights. When set, `generatePdf()` measures rendered banner heights and
-   * uses them as page margins automatically.
-   */
+  /** The measurer for pre-flight DOM measurement of header/footer heights. */
   measurer?: ChromiumMeasurer;
   /** Defaults to NODE_ENV. */
   mode?: "development" | "production";
   /** Defaults to `<templatesDir>/../dist/pdf-manifest.json`. */
   manifestPath?: string;
-  /** Optional CSS inlined into every wrapped document. */
+  /**
+   * Path to a pre-compiled CSS file inlined into every wrapped document.
+   * Defaults to `<manifestDir>/vuedo.css` in production,
+   * `<generated>/vuedo.css` in development.
+   */
   css?: string;
   /**
-   * Optional Tailwind v4 entry (e.g. `assets/app.css`). When given, the package
-   * compiles it itself — scanning only the PDF templates and assets so the
-   * whole consumer service doesn't need its own Tailwind build step. The user
-   * tunes scan scope via `@source` in their entry. Mutually exclusive with
-   * `css`; `tailwind` wins when both are present.
+   * Path to the user's Tailwind v4 CSS entry (e.g. `assets/app.css`).
+   * For the owned-Vite dev fallback — the Vite dev process writes CSS to disk
+   * via the `@hshm/vuedo/vite` plugin, which `createVuedo` reads by convention.
    */
-  tailwind?: string | TailwindOptions;
+  cssEntry?: string;
   /** Folder of static assets (images/fonts) inlined as Base64. Defaults to `<templatesDir>/../assets`. */
   assetsDir?: string;
-  /**
-   * Optional cache backend for memoizing expensive operations (SSR renders,
-   * Tailwind compilation, etc.). Defaults to `NoopCache` (no caching).
-   * Pass `new InMemoryCache()` or `new RedisCache(client)` to enable.
-   */
+  /** Optional cache backend for memoizing expensive operations. */
   cache?: Cache;
 }
 
-/** Page geometry, sent as the `options` field of `generatePdf`. */
 export interface GeneratePdfOptions {
   marginTop?: number;
   marginBottom?: number;
   marginLeft?: number;
   marginRight?: number;
-  /** Paper width in inches. Defaults to A4 (8.27). Also sizes the measurement viewport. */
   paperWidth?: number;
-  /** Paper height in inches. Defaults to A4 (11.69). */
   paperHeight?: number;
-  /** Timeout in milliseconds for each header/footer measurement. Defaults to 3 000ms. */
   measureTimeoutMs?: number;
 }
 
-// `Props` maps a template name to its full data object:
-//   { header?, body, footer?, options }
-// Build it from the generated `PdfTemplateProps` (whose `header`/`footer`
-// keys are present only when the template actually has those sections) so
-// `generatePdf(name, data)` is type-checked against exactly the sections that
-// exist:
-//   createVuedo<PdfTemplateProps>({ ... })
 export interface Vuedo<
   Props extends Record<string, { body: any; options?: any }> = Record<
     string,
     { body: any }
   >,
 > {
-  /** Vue SSR → wrapped, asset-inlined HTML string (body only). */
   renderHtml<T extends keyof Props>(
     template: T,
     data: Props[T]["body"],
   ): Promise<string>;
-  /** Body + paired header/footer composed into one HTML document. */
   renderComposite<T extends keyof Props>(
     template: T,
     data: Props[T],
   ): Promise<string>;
-  /** renderComposite() + Gotenberg conversion. Returns a ReadableStream of PDF bytes. */
   generatePdf<T extends keyof Props>(
     template: T,
     data: Props[T],
   ): Promise<ReadableStream>;
-  /** Closes any internally-owned Vite instance / Redis connection. */
   close(): Promise<void>;
 }
 
@@ -132,8 +102,6 @@ export function createVuedo<
   const assetsDir =
     options.assetsDir ?? path.join(templatesDir, "..", "assets");
 
-  // Resolve the render driver. A caller must supply a `driver`. We do NOT
-  // silently default to an engine — users opt into their backend intentionally.
   const driver: PdfDriver =
     options.driver ??
     (() => {
@@ -144,13 +112,7 @@ export function createVuedo<
       );
     })();
 
-  // Resolve the measurer for pre-flight DOM measurement of header/footer
-  // heights. Optional — when present, `generatePdf()` measures rendered banner
-  // heights and uses them as page margins automatically.
   const measurer = options.measurer;
-
-  // Cache backend — defaults to a no-op so consumers pay no cost unless they
-  // explicitly opt in.
   const cache: Cache = options.cache ?? new NoopCache();
 
   const isDev =
@@ -162,77 +124,26 @@ export function createVuedo<
     options.manifestPath ??
     path.resolve(templatesDir, "..", "dist", "pdf-manifest.json");
 
-  let devRender: RenderFn | undefined;
-  let devDiscovery: Discovery | undefined;
-  let prodManifest: PdfManifest | undefined;
+  const cssEntry = options.cssEntry;
 
-  // Tailwind: when the consumer opts in, the package owns compilation. We
-  // lazily build a single compiler scoped to this templatesDir/assetsDir so the
-  // cache persists across renders.
-  const twOptions = options.tailwind;
-  const twCompiler =
-    twOptions === undefined
-      ? undefined
-      : new TailwindCompiler(
-          typeof twOptions === "string" ? twOptions : twOptions.entry,
-          templatesDir,
-          assetsDir,
-          typeof twOptions === "string" ? undefined : twOptions.sources,
-        );
+  const cssOutput =
+    options.css ??
+    (isDev
+      ? path.resolve(templatesDir, "..", "src", "generated", "vuedo.css")
+      : path.resolve(path.dirname(manifestPath), "vuedo.css"));
 
-  // Resolves the CSS to inline: an explicit `css` string, a `tailwind` entry
-  // compiled by the package, or empty. `tailwind` takes precedence.
-  async function resolveCss(): Promise<string> {
-    if (twCompiler) return twCompiler.compile();
-    return options.css ?? "";
-  }
+  const renderer: VuedoRenderer = isDev
+    ? createDevRenderer(templatesDir, cssEntry, cssOutput)
+    : createProdRenderer(manifestPath, cssOutput);
 
-  async function ensureDev(): Promise<void> {
-    if (!devRender) {
-      const r = await getDevRenderer(templatesDir);
-      devRender = r.render;
-      devDiscovery = r.discovery;
-    }
-  }
-  async function ensureProd(): Promise<void> {
-    if (!prodManifest) prodManifest = await loadManifest(manifestPath);
-  }
-
-  async function layoutOf(
-    name: string,
-  ): Promise<{ header?: string; footer?: string }> {
-    if (isDev) {
-      await ensureDev();
-      return devDiscovery!.layouts[name] ?? {};
-    }
-    await ensureProd();
-    return prodManifest!.layouts[name] ?? {};
-  }
-
-  // Renders a single template (by dotted name) to a wrapped HTML string. Picks
-  // the dev ssrLoadModule path or the pre-compiled prod module accordingly.
-  // `section` selects the wrapper tuning (body vs header vs footer).
   async function renderOne(
     name: string,
     data: unknown,
     section: "body" | "header" | "footer" = "body",
   ): Promise<string> {
-    let inner: string;
-    if (isDev) {
-      await ensureDev();
-      inner = await devRender!(name, data);
-    } else {
-      await ensureProd();
-      const modPath = prodManifest!.entries[name];
-      if (!modPath) throw new Error(`Unknown template: ${name}`);
-      const mod = await import(pathToFileURL(modPath).href);
-      inner = await renderComponent(mod, data);
-    }
-    // Embed any remaining local asset refs (dev URLs, SFC <style> fonts) as
-    // Base64 so Gotenberg needs no network. Prod builds already inline via the
-    // Vite plugin, so this is mostly a no-op there.
+    const inner = await renderer.render(name, data);
     const inlined = await inlineHtmlAssets(inner, assetsDir);
-    const css = await resolveCss();
+    const css = await renderer.resolveCss();
     if (section === "header") return wrapHeader(inlined, css);
     if (section === "footer") return wrapFooter(inlined, css);
     return wrapBody(inlined, css);
@@ -243,7 +154,7 @@ export function createVuedo<
   }
 
   async function renderComposite(template: any, data: any): Promise<string> {
-    const layout = await layoutOf(template);
+    const layout = await renderer.layoutOf(template);
     const body = await renderOne(template, data.body);
     const header =
       layout.header && data.header !== undefined
@@ -265,7 +176,7 @@ export function createVuedo<
     template: any,
     data: any,
   ): Promise<ReadableStream> {
-    const layout = await layoutOf(template);
+    const layout = await renderer.layoutOf(template);
     const body = await renderOne(template, data.body);
     const header =
       layout.header && data.header !== undefined
@@ -299,7 +210,7 @@ export function createVuedo<
     renderComposite,
     generatePdf,
     async close() {
-      await closeOwnedRenderer();
+      await renderer.close();
       await driver.close();
       await measurer?.close();
     },

@@ -7,6 +7,7 @@ import {
   ChromiumDriver,
   PuppeteerMeasurer,
   resolveMargins,
+  NoopCache,
 } from "@hshm/vuedo";
 import pdfParse from "pdf-parse";
 
@@ -152,13 +153,14 @@ describe.skipIf(!browserlessAvailable)(
     </style></head><body><footer>Thank you</footer></body></html>`;
 
     it("fills marginTop/marginBottom from measurement when user provides none", async () => {
-      const result = await resolveMargins(measurer, {}, headerHtml, footerHtml);
+      const result = await resolveMargins(new NoopCache(), measurer, {}, headerHtml, footerHtml);
       expect(result.marginTop).toBeGreaterThan(0.5);
       expect(result.marginBottom).toBeGreaterThan(0.2);
     });
 
     it("user-provided margins override measurement", async () => {
       const result = await resolveMargins(
+        new NoopCache(),
         measurer,
         { marginTop: 99, marginBottom: 99 },
         headerHtml,
@@ -194,6 +196,7 @@ describe.skipIf(!browserlessAvailable || !gotenbergAvailable)(
         driver: new GotenbergDriver(GOTENBERG_URL),
         mode: "production",
         manifestPath: path.resolve("dist/pdf-manifest.json"),
+        css: path.resolve("dist/vuedo.css"),
         measurer,
       });
 
@@ -239,6 +242,7 @@ describe.skipIf(!browserlessAvailable || !gotenbergAvailable)(
         driver: new GotenbergDriver(GOTENBERG_URL),
         mode: "production",
         manifestPath: path.resolve("dist/pdf-manifest.json"),
+        css: path.resolve("dist/vuedo.css"),
         measurer,
       });
 
