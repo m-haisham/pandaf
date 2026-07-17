@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **CI:** GitHub Actions workflow (`.github/workflows/ci.yml`) that runs typecheck, tests (library + consumer), and build on every push and PR to `main`.
+- **CI:** GitHub Actions workflow (`.github/workflows/ci.yml`) that runs build, typecheck, and tests on every push and PR to `main`.
+
+### Changed
+
+- **repo:** Moved the example consumer from the root into
+  `examples/vue/`, published as `@vuedo/example-vue`. Root is now the
+  workspace root only; run `pnpm dev` / `pnpm build` / `pnpm start` from
+  the root as before (delegated via `--filter`).
 
 ### Fixed
 
