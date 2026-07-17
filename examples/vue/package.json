@@ -10,9 +10,7 @@
     "start": "NODE_ENV=production tsx src/server.ts",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "infra:up": "docker compose up -d",
-    "infra:down": "docker compose down"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@elysiajs/node": "^1.4.5",
