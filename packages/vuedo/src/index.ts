@@ -285,6 +285,7 @@ export function createVuedo<
         : undefined;
 
     const margins = await resolveMargins(
+      cache,
       measurer,
       data.options ?? {},
       header,
