@@ -11,7 +11,7 @@
     }
   },
   "scripts": {
-    "dev": "turbo dev --filter=example-vue",
+    "dev": "turbo dev",
     "build": "turbo build",
     "start": "turbo start --filter=example-vue",
     "typecheck": "turbo typecheck",

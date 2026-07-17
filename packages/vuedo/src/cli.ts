@@ -4,19 +4,11 @@ import { fileURLToPath } from "node:url";
 import { vuedo } from "./vite-plugin.js";
 import { generateTypes } from "./types.js";
 
-// The CLI is literally the plugin driving a throwaway, internal Vite build
-// (§4.4 Path B) — for hosts with no Vite config of their own.
-//
-// We shell out to `vite build` with a generated config file rather than calling
-// the programmatic build() API: a programmatic build with ssr:true +
-// multiple inputs silently enables inlineDynamicImports, which corrupts
-// plugin-vue's SFC transform. A real config-file build doesn't hit that path.
 export async function runBuild(
   templatesDir: string,
   outDir: string,
 ): Promise<void> {
   const fs = await import("node:fs/promises");
-  const os = await import("node:os");
   const path = await import("node:path");
   const { spawn } = await import("node:child_process");
 
@@ -26,9 +18,10 @@ export async function runBuild(
   );
   await fs.writeFile(
     configPath,
-    `import vue from '@vitejs/plugin-vue';\n` +
+    `import tailwindcss from '@tailwindcss/vite';\n` +
+      `import vue from '@vitejs/plugin-vue';\n` +
       `import { vuedo } from './vite-plugin.js';\n` +
-      `export default { plugins: [vue(), vuedo({ templatesDir: ${JSON.stringify(
+      `export default { plugins: [tailwindcss(), vue(), vuedo({ templatesDir: ${JSON.stringify(
         templatesDir,
       )}, outDir: ${JSON.stringify(outDir)} })], build: { outDir: ${JSON.stringify(
         outDir,
@@ -36,18 +29,24 @@ export async function runBuild(
   );
 
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(
-      process.execPath,
-      [
-        path.resolve(import.meta.dirname, "../node_modules/vite/bin/vite.js"),
-        "build",
-        "--config",
-        configPath,
-        "--logLevel",
-        "warn",
-      ],
-      { stdio: "inherit" },
-    );
+    const vitePath = (() => {
+      try {
+        return require.resolve("vite/bin/vite.js");
+      } catch {
+        return path.resolve(
+          import.meta.dirname,
+          "../node_modules/vite/bin/vite.js",
+        );
+      }
+    })();
+    const child = spawn(process.execPath, [
+      vitePath,
+      "build",
+      "--config",
+      configPath,
+      "--logLevel",
+      "warn",
+    ]);
     child.on("exit", (code) =>
       code === 0
         ? resolve()
