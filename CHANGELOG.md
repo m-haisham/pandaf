@@ -136,7 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (any Redis client implementing `get`/`set`/`del`). Each entry accepts a
   per-operation TTL (default 1 hour). The cache backend is injected via
   `createVuedo({ cache: new InMemoryCache() })`.
-- **vuedo:** The inferred `PdfTemplateProps` types file is now generated in dev
+- **vuedo:** The inferred `VuedoProps` types file is now generated in dev
   mode by the `@hshm/vuedo/vite` plugin's `configureServer` hook (on dev start)
   and kept in sync via a file watcher as templates are edited — so consumers get
   full type inference with no import errors without running `vite build` or
@@ -151,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **vuedo:** The generated types file was renamed from `src/generated/pdf-templates.d.ts`
   to `src/generated/vuedo.d.ts`. Update your consumer's import to
-  `import type { PdfTemplateProps } from "./generated/vuedo";`.
+  `import type { VuedoProps } from "./generated/vuedo";`.
 
 - **vuedo:** Tailwind v4 is now compiled by the package itself. Pass
   `tailwind: "<path-to-app.css>"` to `createVuedo` and the library scans only the
@@ -203,7 +203,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `renderComposite`, `generatePdf`) with Vue SSR → asset-inlined HTML → Gotenberg
   pipeline.
 - `@hshm/vuedo/vite` Vite plugin and `vuedo` CLI for template compilation,
-  manifest emission, and `PdfTemplateProps` type generation.
+  manifest emission, and `VuedoProps` type generation.
 - Example Elysia consumer with per-template typed routes (invoice, pos) and
   `?preview=html` support.
 - File-based layout discovery (body + paired header/footer) and Tailwind/asset

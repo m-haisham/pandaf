@@ -70,7 +70,7 @@ manifest.ts         writeManifest / loadManifest (entries + layouts)
 render-component.ts  shared Vue SSR (createSSRApp + renderToString)
 gotenberg.ts        Gotenberg HTTP client (returns a ReadableStream)
 html.ts             wrapBody() / wrapHeader() / wrapFooter() document shells
-types.ts            generateTypes() — emits the inferred PdfTemplateProps
+types.ts            generateTypes() — emits the inferred VuedoProps
 vite-plugin.ts      exported as '@hshm/vuedo/vite'
 ```
 
@@ -93,7 +93,7 @@ assets/            static assets referenced by templates (images + fonts, base64
 .vuedo/           AUTO-GENERATED dev artifacts (compiled CSS, etc.) — gitignored, see ".vuedo Dev Folder"
 src/
   server.ts         normal Elysia server (node adapter) — one typed route per template
-  generated/        AUTO-GENERATED PdfTemplateProps (gitignored) — see "Type Generation"
+  generated/        AUTO-GENERATED VuedoProps (gitignored) — see "Type Generation"
   vuedo-env.d.ts    shim so `.vue` imports type-check
 ```
 
@@ -150,7 +150,7 @@ each template name to the **exact** `generatePdf` data shape. Consumers pass it
 to the kit for full type-checking:
 
 ```ts
-const pdf = createVuedo<PdfTemplateProps>({ templatesDir, driver, devServer });
+const pdf = createVuedo<VuedoProps>({ templatesDir, driver, devServer });
 pdf.generatePdf("invoice", { header, body, footer, options }); // fully type-checked
 ```
 
@@ -208,7 +208,7 @@ Rules:
 - The per-template prop types are **inferred** from the SFCs — do **not** maintain
   a hand-written registry (and there is no `shared-types/` folder). Each consumer
   route hand-writes its own TypeBox `t.Object` schema mirroring the SFC props; the
-  generated `PdfTemplateProps` keeps the `generatePdf` call type-checked.
+  generated `VuedoProps` keeps the `generatePdf` call type-checked.
 - New templates: drop a `.vue` file in the consumer's `templatesDir` — that's
   it. `discoverLayouts()` finds them (and pairs headers/footers) for dev
   (`ssrLoadModule`) and build (SSR entry) automatically; no registry to maintain.
@@ -230,7 +230,7 @@ Rules:
 ## Testing Notes (§7)
 
 - **Library** (`packages/vuedo/test`): `discover.test.ts` (recursive pairing +
-  dotted names), `types.test.ts` (generated `PdfTemplateProps`), `dev.test.ts`
+  dotted names), `types.test.ts` (generated `VuedoProps`), `dev.test.ts`
   drives `createVuedo` in development mode covering both paths — with an explicit
   `devServer` (for lifecycle control) and without (library auto-creates from
   `vite.config.ts`); `manifest.prod.test.ts` runs the real build via the vuedo

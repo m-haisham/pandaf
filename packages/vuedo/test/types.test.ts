@@ -4,13 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import { generateTypes } from "../src/types.js";
 
-describe("generateTypes — inferred PdfTemplateProps", () => {
+describe("generateTypes — inferred VuedoProps", () => {
   let out: string;
   afterAll(async () => {
     if (out) await fs.rm(out, { force: true });
   });
 
-  it("emits a PdfTemplateProps interface using ComponentProps", async () => {
+  it("emits a VuedoProps interface using ComponentProps", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vuedf-types-"));
     await fs.writeFile(
       path.join(dir, "Invoice.vue"),
@@ -26,7 +26,7 @@ describe("generateTypes — inferred PdfTemplateProps", () => {
     expect(content).toContain(
       `import type { GeneratePdfOptions } from "@hshm/vuedo";`,
     );
-    expect(content).toContain("export type PdfTemplateProps = {");
+    expect(content).toContain("export type VuedoProps = {");
     expect(content).toContain(`"Invoice": {`);
     expect(content).toContain("body: ComponentProps<typeof Invoice>;");
     expect(content).toContain("options?: GeneratePdfOptions;");

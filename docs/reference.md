@@ -84,7 +84,7 @@ The `.vuedo/` directory at the consumer's project root holds auto-generated arti
 │   ├── discover.ts         # file-based layout discovery (body + paired header/footer)
 │   ├── manifest.ts         # reads pdf-manifest.json written by the plugin at build time
 │   ├── html.ts             # wrapBody / wrapHeader / wrapFooter document shells
-│   ├── types.ts            # generateTypes() — emits the inferred PdfTemplateProps
+│   ├── types.ts            # generateTypes() — emits the inferred VuedoProps
 │   ├── drivers/            # pluggable PDF backends
 │   │   ├── types.ts         # PdfDriver abstract class + DriverRenderInput
 │   │   ├── gotenberg.ts     # GotenbergDriver — remote Chromium service
@@ -227,10 +227,10 @@ A template's layout (body + optional header/footer) is inferred from filenames i
 
 ### 4.3.2 Inferred Template Types
 
-On every `vite build`, the plugin writes a `PdfTemplateProps` type mapping each template name to its inferred `generatePdf` data shape. Consumers pass it to `createVuedo` for type-checked calls:
+On every `vite build`, the plugin writes a `VuedoProps` type mapping each template name to its inferred `generatePdf` data shape. Consumers pass it to `createVuedo` for type-checked calls:
 
 ```ts
-const vuedo = createVuedo<PdfTemplateProps>({ templatesDir, driver, devServer });
+const vuedo = createVuedo<VuedoProps>({ templatesDir, driver, devServer });
 vuedo.generatePdf("invoice", { header, body, footer, options }); // fully type-checked
 ```
 
