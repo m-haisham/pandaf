@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **vuedo:** The `vuedo` CLI (`vuedo build`, `vuedo types`) has been removed.
+  The Vite plugin (`@hshm/vuedo/vite`) is the sole build path — every consumer
+  runs `vite build` with the plugin in their config.
+
+- **vuedo:** The owned-Vite fallback has been removed. In development mode,
+  `createVuedo()` lazy-creates a Vite server from the consumer's
+  `vite.config.ts` (the standard Vite SSR pattern). `devServer` is an
+  optional escape hatch for consumers who need full lifecycle control.
+
+- **vuedo:** The `cssEntry` option on `createVuedo()` has been removed. CSS
+  compilation is handled entirely by the `@tailwindcss/vite` plugin (configured
+  in the consumer's Vite config) and the `@hshm/vuedo/vite` plugin's
+  `configureServer` watcher.
+
+### Added
+
+- **vuedo:** `createVuedo()` accepts an optional `devServer` option — a
+  `ViteDevServer` instance. When omitted in dev mode, the library
+  lazy-creates one from the consumer's `vite.config.ts` and closes it on
+  `vuedo.close()`. Pass your own to control the lifecycle (e.g. for testing).
+
+- **server:** The example consumer's `dev` script is now a single `tsx watch`
+  — no concurrent `vite dev` process. The library auto-creates Vite from
+  `vite.config.ts`.
+
+### Changed
+
+- **vuedo:** Dev-mode rendering follows the standard Vite SSR pattern
+  (see [Vite SSR guide](https://vite.dev/guide/ssr)). `devServer` is optional
+  — when omitted, the library lazy-creates Vite from `vite.config.ts` and
+  calls `vite.ssrLoadModule()` for live template compilation. When provided,
+  the consumer owns the Vite lifecycle.
+
 ### Added
 
 - **vuedo:** A `.vuedo/` development folder at the consumer project root now

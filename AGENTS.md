@@ -18,39 +18,53 @@ When in doubt, follow it.
 
 ## Library Public API (`@hshm/vuedo`)
 
-Three exports (see `docs/reference.md` §4):
+Two exports (see `docs/reference.md` §4):
 
 - **`@hshm/vuedo`** — `createVuedo(options)` returning `{ renderHtml, renderComposite, generatePdf, close }`.
 - **`@hshm/vuedo/vite`** — a Vite plugin (`vuedo({ templatesDir, outDir })`):
-  registers the host's dev server (tier 2) and, on `vite build`, compiles every
-  template as an SSR entry, writes `pdf-manifest.json`, and emits the inferred
-  `PdfTemplateProps` types.
-- **`vuedo` CLI** — `vuedo build --templates <dir> --out <dir>` for hosts
-  with no Vite of their own (Path B); it just drives the same plugin.
+  auto-discovers template SSR entries for the production build, runs type
+  generation, compiles CSS via `@tailwindcss/vite`, and emits
+  `pdf-manifest.json`.
+
+There is no CLI. The Vite plugin is the sole build path — every consumer runs
+`vite build` with the plugin in their config.
 
 `vite` is an **optional peer dependency** — production (manifest path) never
 imports it.
 
-## Dev-Mode Rendering — Two Tiers (§4.3)
+## Dev-Mode Rendering — Standard Vite SSR Pattern (§4.3)
 
-`renderer.ts` picks a Vite instance per render call, in priority order:
+`devServer` is optional. When omitted in dev mode, the library lazy-creates a
+Vite server from the consumer's `vite.config.ts` and closes it on
+`vuedo.close()`. Pass your own `devServer` to control the lifecycle (e.g. for
+testing). In either case the library calls `vite.ssrLoadModule()` for live
+template compilation with HMR. No owned Vite fallback, no shared-instance
+registry — just the standard Vite SSR approach:
 
-1. **shared** — the host's own Vite server, registered by the plugin's
-   `configureServer` hook via `src/dev-registry.ts`. This is the path used when
-   the consumer runs `vite dev` (the root `pnpm dev` does this concurrently with
-   the Elysia server).
-2. **owned** — the library lazily boots its own middleware-mode instance, once,
-   for consumers that run no `vite dev` of their own.
+```ts
+// Dev mode — zero-config (library auto-creates from vite.config.ts)
+const vuedo = createVuedo({ templatesDir, driver });
 
-Production takes none of this: `createVuedo({ mode: 'production' })` reads the
-manifest and `import()`s the pre-compiled SSR module. No Vite involved.
+// Dev mode — explicit server (consumer controls lifecycle)
+const devServer = await createServer({
+  server: { middlewareMode: true },
+  appType: 'custom',
+});
+const vuedo = createVuedo({ templatesDir, driver, devServer });
+
+// Prod mode
+const vuedo = createVuedo({
+  templatesDir, driver, mode: 'production',
+  manifestPath: './dist/pdf-manifest.json',
+  css: './dist/vuedo.css',
+});
+```
 
 ## Library Layout (`packages/vuedo/src`)
 
 ```
 index.ts            createVuedo() — the only required consumer import
-renderer.ts         dev render strategy (2-tier Vite selection) + closeOwnedRenderer
-dev-registry.ts     module-level slot the plugin writes and the core reads
+renderer.ts         dev vs. prod render strategy (devServer-based in dev, manifest-based in prod)
 discover.ts         file-based layout discovery (body + paired header/footer)
 manifest.ts         writeManifest / loadManifest (entries + layouts)
 render-component.ts  shared Vue SSR (createSSRApp + renderToString)
@@ -58,8 +72,9 @@ gotenberg.ts        Gotenberg HTTP client (returns a ReadableStream)
 html.ts             wrapBody() / wrapHeader() / wrapFooter() document shells
 types.ts            generateTypes() — emits the inferred PdfTemplateProps
 vite-plugin.ts      exported as '@hshm/vuedo/vite'
-cli.ts              exported as bin 'vuedo'
 ```
+
+No `cli.ts` or `dev-registry.ts` — these have been removed.
 
 ## Example Consumer Layout (`examples/vue`)
 
@@ -82,17 +97,12 @@ src/
   vuedo-env.d.ts    shim so `.vue` imports type-check
 ```
 
-The library defaults `templatesDir` to `<cwd>/templates`, so a consumer usually
-doesn't even need to pass it. Assets live in `<cwd>/assets` (sibling of
-`templates/`) so a template's `../assets/...` import resolves there.
+The consumer creates the Vite dev server in dev mode and passes it to `createVuedo()`.
 
 ## `.vuedo` Dev Folder
 
 The `.vuedo/` directory (at the consumer's project root, gitignored) holds
-auto-generated artifacts used only during development. None of these files are
-used in production (e.g. in a container).
-
-For now it contains:
+auto-generated artifacts used only during development:
 
 - **`vuedo.css`** — the compiled Tailwind v4 CSS produced by the
   `@tailwindcss/vite` plugin during `vite dev`. The `@hshm/vuedo/vite` plugin
@@ -135,40 +145,12 @@ key from `data` (and from the generated type) — see "Type Generation".
 
 ## Type Generation
 
-On every `vite build` (and via `vuedo types`), the library writes
-`src/generated/vuedo.d.ts` mapping each template name to the **exact**
-`generatePdf` data shape. `header`/`footer` keys are present **only** when the
-template actually has a paired aux, so the call is type-checked against exactly
-the sections that exist:
+On every `vite build`, the library writes `src/generated/vuedo.d.ts` mapping
+each template name to the **exact** `generatePdf` data shape. Consumers pass it
+to the kit for full type-checking:
 
 ```ts
-import type { ComponentProps } from "vue-component-type-helpers";
-import type { GeneratePdfOptions } from "@hshm/vuedo";
-import Invoice from "../templates/invoice.vue";
-import InvoiceFooter from "../templates/invoice-footer.vue";
-import InvoiceHeader from "../templates/invoice-header.vue";
-import Pos_PosHeader from "../templates/pos/pos-header.vue";
-import Pos_PosOrder from "../templates/pos/pos-order.vue";
-
-export type PdfTemplateProps = {
-  "invoice": {
-    header:  ComponentProps<typeof InvoiceHeader>;
-    body:    ComponentProps<typeof Invoice>;
-    footer:  ComponentProps<typeof InvoiceFooter>;
-    options?: GeneratePdfOptions;
-  };
-  "pos.pos-order": {
-    header:  ComponentProps<typeof Pos_PosHeader>;
-    body:    ComponentProps<typeof Pos_PosOrder>;
-    options: GeneratePdfOptions; // no footer key — pos.pos-order has no footer
-  };
-};
-```
-
-Consumers pass it to the kit for full type-checking:
-
-```ts
-const pdf = createVuedo<PdfTemplateProps>({ templatesDir, driver: new GotenbergDriver(process.env.GOTENBERG_URL) });
+const pdf = createVuedo<PdfTemplateProps>({ templatesDir, driver, devServer });
 pdf.generatePdf("invoice", { header, body, footer, options }); // fully type-checked
 ```
 
@@ -182,14 +164,11 @@ props via Volar. The generated file is gitignored (`src/generated/`).
 - `pnpm --filter @hshm/vuedo build` — compile the library to `packages/vuedo/dist`
   (**do this first** — the example service and its Vite config import the built lib)
 - `pnpm dev` (root) — uses `turbo` to build the library first (from cache if
-  unchanged) then runs `vite dev` (`:5173`, Path A) **and** the Elysia server
-  (`:8080`) concurrently in `example-vue`. The `@hshm/vuedo/vite` plugin's
-  `configureServer` fires in the Vite process, so vuedo shares that Vite instance
-  (tier 2) for template hot-compile **and** emits/watches
-  `examples/vue/src/generated/vuedo.d.ts`. Tailwind is compiled by the package
-  from `assets/app.css` at render time and written to `.vuedo/vuedo.css`
-  (no separate Tailwind/watch script). Consumers with no `vite dev` at all fall
-  back to vuedo's tier-3 owned Vite and still get the generated types at startup.
+  unchanged) then runs the Elysia server (`:8080`) with `tsx watch`. The server
+  creates a Vite dev server in middleware mode, which triggers the
+  `@hshm/vuedo/vite` plugin's `configureServer` for CSS compilation, type
+  generation, and template watching. Tailwind is compiled by the package from
+  `assets/app.css` at render time and written to `.vuedo/vuedo.css`.
 - `pnpm build` (root) — `turbo build` => builds the library first (`tsc`) then
   `vite build` in the example with the `vuedo` plugin → `dist/` +
   `pdf-manifest.json` + `src/generated/vuedo.d.ts`. Both are cached by turbo.
@@ -237,28 +216,25 @@ Rules:
   single generic public endpoint — TypeBox validates the `{ header?, body, footer?,
   options }` payload per template at the edge.
 - **Styling**: templates use Tailwind utility classes. `app.css` (`@import
-  "tailwindcss";`) is compiled by the package itself when the service passes
-  `createVuedo({ tailwind: "<path-to-app.css>" })` — `tailwind.ts` scans only the
-  templates + assets (so relevant styles are captured, not the whole service; the
-  consumer tunes via `@source`), and the result is injected into every rendered
-  section by `wrapBody`/`wrapHeader`/`wrapFooter`. No `dist/app.css` build step.
-  Consumers who prefer their own Tailwind build can still pass a precompiled `css`
-  string. Custom fonts go in `assets/fonts/` and are referenced via `@font-face`
-  in `app.css`; vuedo base64-inlines them at runtime.
+  "tailwindcss";`) is compiled by the `@tailwindcss/vite` Vite plugin, included
+  in the consumer's Vite config. The `@hshm/vuedo/vite` plugin's
+  `configureServer` writes compiled CSS to `.vuedo/vuedo.css` on file changes;
+  `createVuedo()` reads it and inlines it into every rendered section.
 - All assets inline as Base64 (no runtime network fetches): imported images/fonts
   in templates are inlined by the library's `inlineAssetsPlugin` (dev + prod), and
   local `url()` refs in `app.css` are inlined by `inlineCssAssets` before injection.
-- The library must never import `vite` at module top level (only dynamically, in
-  the tier-3 fallback and the CLI) so the optional-peer-dependency guarantee
-  holds. `vite-plugin.ts` uses `import type` only.
+- The library must never import `vite` at module top level (only dynamically or
+  via type imports) so the optional-peer-dependency guarantee holds.
+  `vite-plugin.ts` uses `import type` only.
 
 ## Testing Notes (§7)
 
 - **Library** (`packages/vuedo/test`): `discover.test.ts` (recursive pairing +
   dotted names), `types.test.ts` (generated `PdfTemplateProps`), `dev.test.ts`
-  drives `createVuedo` in development mode against a fixture `templatesDir`
-  (tier-3 ssrLoadModule, incl. `renderComposite`); `manifest.prod.test.ts` runs
-  the real build (`runBuild`) then renders via the manifest in production mode.
+  drives `createVuedo` in development mode covering both paths — with an explicit
+  `devServer` (for lifecycle control) and without (library auto-creates from
+  `vite.config.ts`); `manifest.prod.test.ts` runs the real build via the vuedo
+  Vite plugin then renders via the manifest in production mode.
 - **Consumer** (`examples/vue/test`): `app.test.ts` hits each typed Elysia route with
   `?preview=html` (no Gotenberg) and checks TypeBox validation (422 on a missing
   required section); `pdf.e2e.test.ts` builds `dist/`, renders through **real
