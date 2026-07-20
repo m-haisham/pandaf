@@ -5,7 +5,6 @@ import type { ViteDevServer } from "vite";
 import { renderComponent } from "./render-component.js";
 import { discoverLayouts, type Discovery } from "./discover.js";
 import { loadManifest, type PdfManifest } from "./manifest.js";
-import { inlineAssetsPlugin } from "./inline-assets.js";
 
 export interface VuedoRenderer {
   render(name: string, data: unknown): Promise<string>;
@@ -15,69 +14,55 @@ export interface VuedoRenderer {
 }
 
 // ---------------------------------------------------------------------------
-// DevRenderer — owned Vite SSR (booted in-process, always works)
+// DevRenderer — uses a Vite dev server (consumer-provided or auto-created)
 // ---------------------------------------------------------------------------
-
-let ownedVite: ViteDevServer | undefined;
-let ownedCssEntry: string | undefined;
-
-async function createOwnedVite(
-  templatesDir: string,
-  cssEntry?: string,
-): Promise<ViteDevServer> {
-  const { createServer } = await import("vite");
-  const vue = (await import("@vitejs/plugin-vue")).default;
-  const plugins: any[] = [vue(), inlineAssetsPlugin()];
-  if (cssEntry) {
-    const tailwindcss = (await import("@tailwindcss/vite")).default;
-    plugins.unshift(tailwindcss());
-  }
-  const root = path.resolve(templatesDir);
-  const fsAllow = [root];
-  if (cssEntry) fsAllow.push(path.dirname(path.resolve(cssEntry)));
-  return createServer({
-    root,
-    configFile: false,
-    plugins,
-    server: { middlewareMode: true, fs: { allow: fsAllow } },
-    appType: "custom",
-    css: { devSourcemap: false },
-  });
-}
 
 export function createDevRenderer(
   templatesDir: string,
-  cssEntry?: string,
+  devServer?: ViteDevServer,
   cssOutput?: string,
 ): VuedoRenderer {
   let discovery: Discovery | undefined;
+  let ownedServer: ViteDevServer | undefined;
+
+  async function getServer(): Promise<ViteDevServer> {
+    if (devServer) return devServer;
+    if (!ownedServer) {
+      const { createServer } = await import("vite");
+      ownedServer = await createServer({
+        server: { middlewareMode: true },
+        appType: "custom",
+      });
+    }
+    return ownedServer;
+  }
 
   async function ensure(): Promise<{
     render(name: string, data: unknown): Promise<string>;
   }> {
     if (!discovery) {
       discovery = await discoverLayouts(templatesDir);
-      ownedVite ??= await createOwnedVite(templatesDir, cssEntry);
-      if (cssEntry) ownedCssEntry = cssEntry;
     }
+
+    const server = await getServer();
 
     function urlFor(name: string): string {
       const file = discovery!.entries[name];
       if (!file) throw new Error(`Unknown template: ${name}`);
-      return "/" + path.relative(templatesDir, file).split(path.sep).join("/");
+      return (
+        "/" + path.relative(server.config.root, file).split(path.sep).join("/")
+      );
     }
 
     return {
       async render(name, data) {
-        const mod = await ownedVite!.ssrLoadModule(urlFor(name));
+        const mod = await server.ssrLoadModule(urlFor(name));
         return renderComponent(mod, data);
       },
     };
   }
 
   async function resolveCss(): Promise<string> {
-    await ensure();
-
     if (cssOutput) {
       try {
         return await fs.readFile(cssOutput, "utf-8");
@@ -85,19 +70,6 @@ export function createDevRenderer(
         console.warn(`[vuedo] Failed to read CSS output from ${cssOutput}`);
       }
     }
-
-    if (ownedCssEntry && ownedVite) {
-      try {
-        const absEntry = path.resolve(ownedCssEntry);
-        const rel = path.relative(ownedVite.config.root, absEntry);
-        const cssUrl = "/" + rel.split(path.sep).join("/");
-        const mod = await ownedVite.ssrLoadModule(cssUrl + "?inline");
-        return (mod as { default?: string }).default ?? "";
-      } catch {
-        return "";
-      }
-    }
-
     return "";
   }
 
@@ -112,10 +84,10 @@ export function createDevRenderer(
     },
     resolveCss,
     async close() {
-      if (ownedVite) {
-        await ownedVite.close();
-        ownedVite = undefined;
-        ownedCssEntry = undefined;
+      discovery = undefined;
+      if (ownedServer) {
+        await ownedServer.close();
+        ownedServer = undefined;
       }
     },
   };

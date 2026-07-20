@@ -5,7 +5,7 @@
   "description": "Example Elysia consumer of @hshm/vuedo",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite dev --port 5173\" \"tsx watch --ignore '**/*.timestamp-*.mjs' src/server.ts\"",
+    "dev": "tsx watch --ignore '**/*.timestamp-*.mjs' src/server.ts",
     "build": "vite build",
     "start": "NODE_ENV=production tsx src/server.ts",
     "typecheck": "vue-tsc --noEmit",

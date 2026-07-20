@@ -2,21 +2,28 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runBuild } from "../src/cli.js";
+import { build } from "vite";
+import vue from "@vitejs/plugin-vue";
+import { vuedo } from "../src/vite-plugin.js";
 import { createVuedo, GotenbergDriver } from "../src/index.js";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const templatesDir = path.resolve(dir, "fixtures/templates");
 const outDir = path.resolve(dir, "..", ".tmp-dist");
 
-// Production mode: the manifest written by the build (§4.4) is read and the
-// pre-compiled SSR modules are imported directly — no ssrLoadModule, no dev Vite.
+// Production mode: the vuedo Vite plugin drives the build → manifest written.
 beforeAll(async () => {
-  await runBuild(templatesDir, outDir);
+  await build({
+    root: templatesDir,
+    configFile: false,
+    plugins: [vue(), vuedo({ templatesDir, outDir })],
+    build: { outDir },
+    logLevel: "warn",
+  });
 }, 60_000);
 
 afterAll(async () => {
-  // await fs.rm(outDir, { recursive: true, force: true });
+  await fs.rm(outDir, { recursive: true, force: true });
 });
 
 describe("createVuedo — production (manifest, compiled module)", () => {

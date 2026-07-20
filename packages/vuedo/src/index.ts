@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { ViteDevServer } from "vite";
 import {
   VuedoRenderer,
   createDevRenderer,
@@ -37,11 +38,12 @@ export interface VuedoOptions {
    */
   css?: string;
   /**
-   * Path to the user's Tailwind v4 CSS entry (e.g. `assets/app.css`).
-   * For the owned-Vite dev fallback — the Vite dev process writes CSS to disk
-   * via the `@hshm/vuedo/vite` plugin, which `createVuedo` reads by convention.
+   * The consumer's Vite dev server. Optional — when omitted in dev mode,
+   * the library lazy-creates one from the consumer's `vite.config.ts` and
+   * closes it on `vuedo.close()`. Pass your own instance to control the
+   * lifecycle (e.g. for testing or when you need to mount its middleware).
    */
-  cssEntry?: string;
+  devServer?: ViteDevServer;
   /** Folder of static assets (images/fonts) inlined as Base64. Defaults to `<templatesDir>/../assets`. */
   assetsDir?: string;
   /** Optional cache backend for memoizing expensive operations. */
@@ -140,8 +142,6 @@ export function createVuedo<
     options.manifestPath ??
     path.resolve(templatesDir, "..", "dist", "pdf-manifest.json");
 
-  const cssEntry = options.cssEntry;
-
   const cssOutput =
     options.css ??
     (isDev
@@ -149,7 +149,7 @@ export function createVuedo<
       : path.resolve(path.dirname(manifestPath), "vuedo.css"));
 
   const renderer: VuedoRenderer = isDev
-    ? createDevRenderer(templatesDir, cssEntry, cssOutput)
+    ? createDevRenderer(templatesDir, options.devServer, cssOutput)
     : createProdRenderer(manifestPath, cssOutput);
 
   async function renderOne(

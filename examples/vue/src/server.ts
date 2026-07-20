@@ -13,6 +13,7 @@ import { openapi } from "@elysiajs/openapi";
 import type { PdfTemplateProps } from "./generated/vuedo";
 
 const templatesDir = path.resolve("templates");
+const isDev = process.env.NODE_ENV !== "production";
 
 export const vuedo = createVuedo<PdfTemplateProps>({
   templatesDir,
@@ -25,7 +26,9 @@ export const vuedo = createVuedo<PdfTemplateProps>({
     }),
   ),
   cache: new InMemoryCache(),
+  mode: isDev ? "development" : "production",
   manifestPath: path.resolve("dist/pdf-manifest.json"),
+  css: isDev ? undefined : path.resolve("dist/vuedo.css"),
 });
 
 // Each template's request body: `{ header?, body, footer?, options }`, shaped
@@ -312,7 +315,6 @@ export const app = new Elysia({ adapter: node() })
       },
     },
   )
-  // GET PDF download endpoints used by the preview toolbar's Download button.
   .get(
     "/invoice/pdf",
     async () => {
