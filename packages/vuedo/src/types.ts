@@ -6,7 +6,7 @@ function ident(name: string): string {
   return name.replace(/[^A-Za-z0-9_$]/g, "_");
 }
 
-// Emits a `PdfTemplateProps` interface mapping each body template name to the
+// Emits a `VuedoProps` interface mapping each body template name to the
 // exact data shape `generatePdf(name, data)` expects:
 //   { header?, body, footer?, options }
 // `header`/`footer` keys are present ONLY when the template actually has a
@@ -65,7 +65,7 @@ import type { ComponentProps } from "vue-component-type-helpers";
 import type { GeneratePdfOptions } from "@hshm/vuedo";
 ${imports}
 
-export type PdfTemplateProps = {
+export type VuedoProps = {
 ${map}
 };
 `;

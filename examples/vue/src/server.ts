@@ -10,12 +10,12 @@ import {
   type PaperSize,
 } from "@hshm/vuedo";
 import { openapi } from "@elysiajs/openapi";
-import type { PdfTemplateProps } from "./generated/vuedo";
+import type { VuedoProps } from "./generated/vuedo";
 
 const templatesDir = path.resolve("templates");
 const isDev = process.env.NODE_ENV !== "production";
 
-export const vuedo = createVuedo<PdfTemplateProps>({
+export const vuedo = createVuedo<VuedoProps>({
   templatesDir,
   driver: new GotenbergDriver(
     process.env.GOTENBERG_URL ?? "http://localhost:3000",
@@ -32,7 +32,7 @@ export const vuedo = createVuedo<PdfTemplateProps>({
 });
 
 // Each template's request body: `{ header?, body, footer?, options }`, shaped
-// exactly like the generated PdfTemplateProps entry (a template without a
+// exactly like the generated VuedoProps entry (a template without a
 // paired header/footer simply omits that key). `options` carries the Gotenberg
 // page margins.
 const optionsSchema = t.Object({
