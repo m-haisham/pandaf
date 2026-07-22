@@ -22,7 +22,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/m-haisham/vuedo.git",
+    "url": "git+https://github.com/m-haisham/pandaf.git",
     "directory": "packages/react"
   },
   "bugs": {
