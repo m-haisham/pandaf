@@ -14,7 +14,8 @@
     "./vite": {
       "types": "./dist/vite-plugin.d.ts",
       "import": "./dist/vite-plugin.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"

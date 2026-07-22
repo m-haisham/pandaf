@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Added 'package.json' export fields for `@pandaf/core`, `@pandaf/vue`, and `@pandaf/react` to support ESM and CJS consumers.
+
 ## [0.1.0] - 2026-07-22
 
 ### Added
