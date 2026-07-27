@@ -14,6 +14,7 @@ import {
   resolveMargins,
 } from "@pandaf/core";
 import { Cache, NoopCache } from "@pandaf/core";
+import { mountConnect } from "@pandaf/core";
 import {
   buildPreviewHtml,
   type PreviewHtmlOptions,
@@ -89,6 +90,9 @@ export interface Pandaf<
   ): Promise<string>;
   /** The Vite dev server when running in development mode. */
   readonly devServer: ViteDevServer | undefined;
+  /** Returns an Elysia plugin that mounts the Vite dev server middlewares
+   * (in dev mode) or a no-op Elysia instance (in prod mode). */
+  elysiaMiddleware(): Promise<ReturnType<typeof mountConnect>>;
   close(): Promise<void>;
 }
 
@@ -111,7 +115,7 @@ export type {
 export { Cache, NoopCache, InMemoryCache, RedisCache } from "@pandaf/core";
 export type { RedisClient } from "@pandaf/core";
 
-export { mountConnect } from "@pandaf/core";
+export { mountConnect };
 export type { ConnectMiddleware, ConnectApp } from "@pandaf/core";
 
 export function createPandaf<
@@ -275,6 +279,12 @@ export function createPandaf<
     previewHtml,
     get devServer() {
       return renderer.getDevServer();
+    },
+    async elysiaMiddleware() {
+      const server = renderer.getDevServer();
+      if (server) return mountConnect(server.middlewares);
+      const { Elysia } = await import("elysia");
+      return new Elysia() as ReturnType<typeof mountConnect>;
     },
     async close() {
       await renderer.close();

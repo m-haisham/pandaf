@@ -1,6 +1,5 @@
 import { Elysia, t } from "elysia";
 import { node } from "@elysiajs/node";
-import { createServer } from "vite";
 import path from "node:path";
 import {
   ChromiumDriver,
@@ -10,20 +9,11 @@ import {
   PuppeteerMeasurer,
   type PaperSize,
 } from "@pandaf/vue";
-import { mountConnect } from "@pandaf/vue/connect";
 import { openapi } from "@elysiajs/openapi";
 import type { PandafProps } from "./generated/pandaf";
 
 const templatesDir = path.resolve("templates");
 const isDev = process.env.NODE_ENV !== "production";
-
-export let devServer: Awaited<ReturnType<typeof createServer>> | undefined;
-
-if (isDev) {
-  devServer = await createServer({
-    appType: "custom",
-  });
-}
 
 export const pandaf = createPandaf<PandafProps>({
   templatesDir,
@@ -39,7 +29,6 @@ export const pandaf = createPandaf<PandafProps>({
   mode: isDev ? "development" : "production",
   manifestPath: path.resolve("dist/pdf-manifest.json"),
   css: isDev ? undefined : path.resolve("dist/pandaf.css"),
-  devServer,
 });
 
 const optionsSchema = t.Object({
@@ -174,7 +163,7 @@ const POS_ORDER_MOCK = {
 };
 
 export const app = new Elysia({ adapter: node() })
-  .use(devServer ? mountConnect(devServer.middlewares) : new Elysia())
+  .use(await pandaf.elysiaMiddleware())
   .use(
     openapi({
       path: "/docs",
