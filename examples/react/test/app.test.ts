@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from "vitest";
-import { app, pandaf, devServer } from "../src/server";
+import { app, pandaf } from "../src/server";
 
 const post = (path: string, body: unknown, qs = "") =>
   app.handle(
@@ -12,7 +12,6 @@ const post = (path: string, body: unknown, qs = "") =>
 
 afterAll(async () => {
   await pandaf.close();
-  await devServer?.close();
 });
 
 describe("service POST /invoice", () => {
