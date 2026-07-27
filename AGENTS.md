@@ -6,7 +6,7 @@ Guidance for AI agents and contributors working in this repository.
 
 ## Project Overview
 
-This is a **pnpm workspace** with three parts:
+This is a **pnpm workspace** with four parts:
 
 - **`packages/core`** — `@pandaf/core`, framework-agnostic **primitives**:
   pluggable PDF drivers (Gotenberg, Chromium/Puppeteer), header/footer DOM
@@ -18,15 +18,22 @@ This is a **pnpm workspace** with three parts:
   discovery, dev-mode live compilation via a Vite dev server, type generation,
   and a Vite plugin. Exposes `createPandaf()` → `renderHtml()` /
   `generatePdf()`.
-- **`examples/vue`** — an example **consumer**: a plain Elysia backend that
-  installs `@pandaf/vue` (via `workspace:*`) and calls it from its own routes.
+- **`packages/react`** — `@pandaf/react`, the **React adapter** built on
+  `@pandaf/core`: React SSR compilation of print templates, file-based layout
+  discovery (plus single-file named-export convention), dev-mode live compilation,
+  type generation, a Vite plugin, and Connect middleware for plugging into
+  non-Elysia servers. Exposes `createPandaf()` → `renderHtml()` /
+  `generatePdf()`.
+- **`examples/vue`** and **`examples/react`** — example **consumers**: plain
+  Elysia backends that install `@pandaf/vue` or `@pandaf/react` (via
+  `workspace:*`) and call it from their own routes.
 
 The authoritative architecture/spec is [`docs/reference.md`](docs/reference.md).
 When in doubt, follow it.
 
 ## Library Public API
 
-Three exports (see `docs/reference.md` §4):
+Four exports (see `docs/reference.md` §4):
 
 - **`@pandaf/core`** — framework-agnostic primitives: `PdfDriver`, `GotenbergDriver`,
   `ChromiumDriver`, `PuppeteerMeasurer`, `resolveMargins`, `Cache`,
@@ -39,6 +46,16 @@ Three exports (see `docs/reference.md` §4):
   auto-discovers template SSR entries for the production build, runs type
   generation, compiles CSS via `@tailwindcss/vite`, and emits
   `pdf-manifest.json`.
+- **`@pandaf/react`** — `createPandaf(options)` returning
+  `{ renderHtml, renderComposite, generatePdf, previewHtml, close }`. Re-exports
+  everything from `@pandaf/core` for convenience. Also exports `mountConnect`
+  for plugging into non-Elysia servers.
+- **`@pandaf/react/vite`** — a Vite plugin (`pandaf({ templatesDir, outDir })`):
+  auto-discovers template SSR entries for the production build, runs type
+  generation, compiles CSS via `@tailwindcss/vite`, and emits
+  `pdf-manifest.json`. Handles the single-file React convention (named
+  `Header`/`Footer`/`Body` exports) in dev preview.
+- **`@pandaf/react/connect`** — Connect middleware for mounting on non-Elysia servers.
 
 There is no CLI. The Vite plugin is the sole build path — every consumer runs
 `vite build` with the plugin in their config.
@@ -112,7 +129,42 @@ vite-plugin.ts      exported as '@pandaf/vue/vite'
 
 No `cli.ts` or `dev-registry.ts` — these have been removed.
 
+### `packages/react/src` — React adapter (@pandaf/react)
+
+```
+index.ts            createPandaf() — the only required consumer import;
+                    re-exports everything from @pandaf/core for convenience;
+                    also re-exports mountConnect + ConnectMiddleware
+renderer.ts         dev vs. prod render strategy (devServer-based in dev, manifest-based in prod)
+discover.ts         .tsx file-based layout discovery (body + paired header/footer)
+manifest.ts         writeManifest / loadManifest (entries + layouts)
+render-component.ts  shared React SSR (renderToString)
+types.ts            generateTypes() — emits the inferred PandafProps
+vite-plugin.ts      exported as '@pandaf/react/vite'
+connect.ts          re-exports mountConnect as '@pandaf/react/connect'
+```
+
+No `cli.ts` or `dev-registry.ts` — these have been removed.
+
 ## Example Consumer Layout (`examples/vue`)
+
+### `examples/react`
+
+```
+templates/         React TSX files — the PDF templates.
+  components/      Reusable React components imported by view templates.
+    MoneyAmount.tsx
+  views/           Discovered template files (auto-detected when present).
+    invoice.tsx         body + optional named Header/Footer exports
+    pos/pos-order.tsx   nested body
+assets/            static assets referenced by templates (images + fonts, base64-inlined)
+  app.css           Tailwind v4 entry
+src/
+  server.ts         normal Elysia server (node adapter) — one typed route per template
+  pandaf-env.d.ts    shim so `.tsx` imports type-check
+```
+
+### File-Based Layout Convention (both packages)
 
 ```
 templates/         Vue SFCs — the PDF templates (file-based layout convention, §below).
@@ -152,9 +204,9 @@ auto-generated artifacts used only during development:
 ## File-Based Layout Convention
 
 There is **no** `header`/`footer` field on the request. Layout is inferred from
-the template filenames (`packages/vue/src/discover.ts`):
+the template filenames (`packages/vue/src/discover.ts`, `packages/react/src/discover.ts`):
 
-- `X.vue` → a **body** template named `X`.
+- `X.vue` / `X.tsx` → a **body** template named `X`.
 - `XHeader.vue` / `XFooter.vue` in the **same folder** → paired with `X`
   (**legacy PascalCase**). Preferred is the lowercase kebab form:
   `x-header.vue` / `x-footer.vue` pairs with `x.vue`.
@@ -169,6 +221,9 @@ the template filenames (`packages/vue/src/discover.ts`):
   in `templates/components/` (imported by views, not discovered as template
   entries). Template names stay clean — `views/invoice.vue` becomes `invoice`,
   not `views.invoice`.
+- **React single-file convention**: when no file-based header/footer aux file is
+  found, the renderer falls back to checking the body module for named `Header`
+  and `Footer` exports. This lets React users write everything in one file:
 
 `createPandaf().generatePdf(name, data)` resolves the layout automatically and
 renders body + the paired header/footer. The `data` object carries each
@@ -202,6 +257,9 @@ Accurate prop inference requires type-checking with **`vue-tsc`** (the root
 `pnpm typecheck` script), not plain `tsc` — `ComponentProps` reads the real SFC
 props via Volar. The generated file is gitignored (`src/generated/`).
 
+For the React package, type inference uses `ComponentPropsWithoutRef` from
+React on the named exports (`Body`, `Header`, `Footer`) of each template.
+
 ## Commands
 
 - `pnpm install` — install all workspace deps
@@ -210,14 +268,17 @@ props via Volar. The generated file is gitignored (`src/generated/`).
 - `pnpm --filter @pandaf/vue build` — compile the Vue adapter to
   `packages/vue/dist` (**do this first** — the example service and its Vite
   config import the built lib)
-- `pnpm dev` (root) — uses `turbo` to build the library first (from cache if
-  unchanged) then runs the Elysia server (`:8080`) with `tsx watch`. The server
-  creates a Vite dev server in middleware mode, which triggers the
-  `@pandaf/vue/vite` plugin's `configureServer` for CSS compilation, type
-  generation, and template watching. Tailwind is compiled by the package from
-  `assets/app.css` at render time and written to `.pandaf/pandaf.css`.
-- `pnpm build` (root) — `turbo build` => builds core first (`tsc`), then
-  the vue adapter (`tsc`), then `vite build` in the example with the `pandaf`
+- `pnpm --filter @pandaf/react build` — compile the React adapter to
+  `packages/react/dist` (**do this first** — the example service and its Vite
+  config import the built lib)
+- `pnpm dev` (root) — uses `turbo` to build the libraries first (from cache if
+  unchanged) then runs the example Elysia server (`:8080`) with `tsx watch`.
+  The server creates a Vite dev server in middleware mode, which triggers the
+  pandaf plugin's `configureServer` for CSS compilation, type generation, and
+  template watching. Tailwind is compiled by the package from `assets/app.css`
+  at render time and written to `.pandaf/pandaf.css`.
+- `pnpm build` (root) — `turbo build` => builds core first (`tsc`), then each
+  framework adapter (`tsc`), then `vite build` in the example with the pandaf
   plugin → `dist/` + `pdf-manifest.json` + `src/generated/pandaf.d.ts`. All
   cached by turbo.
 - `pnpm start` (root) — `NODE_ENV=production` server, reads the manifest
@@ -300,7 +361,15 @@ Rules:
   `devServer` (for lifecycle control) and without (library auto-creates from
   `vite.config.ts`); `manifest.prod.test.ts` runs the real build via the pandaf
   Vite plugin then renders via the manifest in production mode.
-- **Consumer** (`examples/vue/test`): `app.test.ts` hits each typed Elysia route with
+- **React adapter** (`packages/react/test`): `discover.test.ts` (recursive pairing +
+  dotted names + non-`.tsx` filtering), `types.test.ts` (generated `PandafProps`
+  with `ComponentPropsWithoutRef`), `dev.test.ts` drives `createPandaf` in
+  development mode (explicit and auto-created `devServer`), `manifest.prod.test.ts`
+  runs the real Vite SSR build with `@vitejs/plugin-react` then renders via the
+  production manifest, `hmr.test.ts` verifies template change broadcasting via
+  custom WebSocket events, `connect.test.ts` tests Connect middleware integration
+  with Elysia.
+- **Consumer** (`examples/vue/test` and `examples/react/test`): `app.test.ts` hits each typed Elysia route with
   `?preview=html` (no Gotenberg) and checks TypeBox validation (422 on a missing
   required section); `invoice.e2e.test.ts`, `pos-order.e2e.test.ts`,
   `measurement.e2e.test.ts` build `dist/`, render through **real
