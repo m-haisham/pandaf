@@ -6,7 +6,7 @@ import { writeManifest } from "./manifest.js";
 import { generateTypes } from "./types.js";
 import { inlineAssetsPlugin, buildPreviewHtml, type PaperSize } from "@pandaf/core";
 import { renderComponent, renderNamedComponent, type TemplateModule } from "./render-component.js";
-import { getVitePort, resolvePluginOpts, type PandafPluginOptions } from "@pandaf/core";
+import { resolvePluginOpts, type PandafPluginOptions } from "@pandaf/core";
 
 export type { PandafPluginOptions };
 
@@ -134,8 +134,6 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
 
       if (!previewEnabled) return;
 
-      const vitePort = getVitePort(server);
-
       server.middlewares.use(
         previewBase + "/preview",
         async (req, res, next) => {
@@ -207,10 +205,11 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
                 /* CSS may not be configured; proceed without it */
               }
             }
+            const hmrPort = (server.config.server.hmr as any)?.port;
             const html = await buildPreviewHtml(sections, {
               paperSize: defaultPaperSize,
               css,
-              vitePort,
+              hmr: typeof hmrPort === "number" ? hmrPort : undefined,
             });
 
             res.statusCode = 200;

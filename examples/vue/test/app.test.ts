@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from "vitest";
-import { app, pandaf } from "../src/server";
+import { app, pandaf, devServer } from "../src/server";
 
 // Consumer tests (§7): plain requests against the app's own router. No network
 // hop to mock — pandaf renders in-process; ?preview=html avoids Gotenberg. Each
@@ -14,7 +14,10 @@ const post = (path: string, body: unknown, qs = "") =>
     }),
   );
 
-afterAll(() => pandaf.close());
+afterAll(async () => {
+  await pandaf.close();
+  await devServer?.close();
+});
 
 describe("service POST /invoice", () => {
   it("composes body + paired header/footer via ?preview=html (no Gotenberg)", async () => {

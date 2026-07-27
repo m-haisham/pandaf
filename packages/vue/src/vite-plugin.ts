@@ -6,7 +6,7 @@ import { writeManifest } from "./manifest.js";
 import { generateTypes } from "./types.js";
 import { inlineAssetsPlugin, buildPreviewHtml, type PaperSize } from "@pandaf/core";
 import { renderComponent } from "./render-component.js";
-import { getVitePort, resolvePluginOpts, type PandafPluginOptions } from "@pandaf/core";
+import { resolvePluginOpts, type PandafPluginOptions } from "@pandaf/core";
 
 export type { PandafPluginOptions };
 
@@ -57,8 +57,6 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
     return renderComponent(mod, data);
   }
 
-  /** @deprecated Use getVitePort from @pandaf/core */
-
   return {
     name: "pandaf",
     configureServer(server) {
@@ -76,8 +74,6 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
         discovery = undefined;
         await generateTypes(opts.templatesDir, typesOut).catch(() => {});
 
-        // Broadcast custom reload event to all WebSocket clients (Vite's HMR
-        // clients + our preview page's raw WebSocket connections).
         try {
           server.ws.send({
             type: "custom",
@@ -125,8 +121,6 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
       // -----------------------------------------------------------------------
 
       if (!previewEnabled) return;
-
-      const vitePort = getVitePort(server);
 
       server.middlewares.use(
         previewBase + "/preview",
@@ -181,10 +175,11 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
                 /* CSS may not be configured; proceed without it */
               }
             }
+            const hmrPort = (server.config.server.hmr as any)?.port;
             const html = await buildPreviewHtml(sections, {
               paperSize: defaultPaperSize,
               css,
-              vitePort,
+              hmr: typeof hmrPort === "number" ? hmrPort : undefined,
             });
 
             res.statusCode = 200;

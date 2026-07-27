@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **core:** Added `mountConnect` adapter to mount Connect/Express-style middleware (e.g. Vite's dev server middlewares) inside an Elysia server. Uses `node-mocks-http` to adapt between Web and Node.js request/response types. Exported as `@pandaf/core` and re-exported from both `@pandaf/vue` and `@pandaf/react` (also available at `@pandaf/vue/connect` and `@pandaf/react/connect`).
+- **core:** Added `getDevServer()` method to `PandafRenderer` interface.
+- **vue:** Added `devServer` getter on `createPandaf()` result, exposing the Vite dev server for lifecycle control and middleware mounting.
+- **react:** Added `devServer` getter on `createPandaf()` result.
+
+### Fixed
+
+- **vue, react:** Preview pages no longer enter an infinite reload loop when running without a standalone `vite dev` process. Both example consumers now create the Vite dev server explicitly with a dedicated HMR port (`hmr: { port: 5173 }` for vue, `5174` for react) and mount its HTTP middlewares via `mountConnect`. The preview page's HMR WebSocket client connects to Vite's dedicated HMR port, enabling hot reload when templates change. In production mode, `vitePort` is omitted and no WebSocket is injected.
+
 ## [0.1.2] - 2026-07-22
 
 ### Fixed
