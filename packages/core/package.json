@@ -48,11 +48,18 @@
     "build": "tsc",
     "test": "vitest run"
   },
+  "dependencies": {
+    "node-mocks-http": "^1.16.0"
+  },
   "peerDependencies": {
+    "elysia": "^1.0.0",
     "vite": "^5.0.0",
     "puppeteer": "^23.0.0"
   },
   "peerDependenciesMeta": {
+    "elysia": {
+      "optional": true
+    },
     "vite": {
       "optional": true
     },
@@ -61,7 +68,9 @@
     }
   },
   "devDependencies": {
+    "@elysiajs/node": "^1.4.0",
     "@types/node": "^20.0.0",
+    "elysia": "^1.0.0",
     "puppeteer-core": "^23.0.0",
     "typescript": "^5.4.0",
     "vite": "^5.2.0",

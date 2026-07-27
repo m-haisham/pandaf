@@ -19,12 +19,12 @@ export interface PreviewHtmlOptions {
    */
   css?: string | Promise<string>;
   /**
-   * Port of the running Vite dev server. When set, the preview page includes
-   * a WebSocket client that connects to Vite's HMR WebSocket and reloads the
-   * page on `pandaf:reload` events. Omit when the preview is served from the
-   * same origin as Vite (the Vite middleware path).
+   * When `true`, injects Vite's `@vite/client` script for Vite HMR support.
+   * When a number, also sets up a raw WebSocket to the given port to listen
+   * for `pandaf:reload` custom events broadcast by the pandaf Vite plugin on
+   * template changes. Omit or set to `false` to disable live reload.
    */
-  vitePort?: number;
+  hmr?: boolean | number;
   /**
    * URL for a "Download PDF" button in the toolbar.
    * Typically the consumer's PDF-generation endpoint so the developer can
@@ -35,22 +35,27 @@ export interface PreviewHtmlOptions {
 
 const SIZES_DATA = JSON.stringify(PAPER_SIZES);
 
-function hmrClient(vitePort?: number): string {
-  if (!vitePort) return "";
-  const code = [
-    "(function(){",
-    '  var host = location.hostname;',
-    '  var ws = new WebSocket("ws://"+host+":"+' + vitePort + ");",
-    "  ws.onmessage = function(e) {",
-    "    try {",
-    '      var d = JSON.parse(e.data);',
-    '      if (d.type === "custom" && d.event === "pandaf:reload") location.reload();',
-    "    } catch(e) {}",
-    "  };",
-    "  ws.onclose = function() { setTimeout(function() { location.reload(); }, 3000); };",
-    "})();",
-  ].join(LS);
-  return "<script>" + code + "\x3c/script>";
+function hmrClient(hmr?: boolean | number): string {
+  if (!hmr) return "";
+  const lines = ['<script type="module" src="/@vite/client"></script>'];
+  if (typeof hmr === "number") {
+    lines.push(
+      "<script>",
+      "(function(){",
+      "  var host = location.hostname;",
+      "  var ws = new WebSocket('ws://'+host+':'+" + hmr + ");",
+      "  ws.onmessage = function(e) {",
+      "    try {",
+      "      var d = JSON.parse(e.data);",
+      "      if (d.type === 'custom' && d.event === 'pandaf:reload') location.reload();",
+      "    } catch(e) {}",
+      "  };",
+      "  ws.onclose = function() { setTimeout(function() { location.reload(); }, 3000); };",
+      "})();",
+      "\x3c/script>",
+    );
+  }
+  return lines.join(LS);
 }
 
 export async function buildPreviewHtml(
@@ -167,7 +172,7 @@ export async function buildPreviewHtml(
     "  </div>",
     "</div>",
     "<script>" + script + "\x3c/script>",
-    hmrClient(options.vitePort),
+    hmrClient(options.hmr),
     "</body>",
     "</html>",
   ].join(LS);

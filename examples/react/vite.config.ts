@@ -14,6 +14,10 @@ export default defineConfig({
       cssEntry: "assets/app.css",
     }),
   ],
+  server: {
+    middlewareMode: true,
+    hmr: { port: 5174 },
+  },
   build: {
     outDir: "dist",
     assetsInlineLimit: 100_000_000,

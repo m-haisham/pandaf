@@ -1,11 +1,13 @@
 import { Elysia, t } from "elysia";
 import { node } from "@elysiajs/node";
+import { createServer } from "vite";
 import path from "node:path";
 import {
   ChromiumDriver,
   createPandaf,
   GotenbergDriver,
   InMemoryCache,
+  mountConnect,
   PuppeteerMeasurer,
   type PaperSize,
 } from "@pandaf/react";
@@ -14,6 +16,14 @@ import type { PandafProps } from "./generated/pandaf";
 
 const templatesDir = path.resolve("templates");
 const isDev = process.env.NODE_ENV !== "production";
+
+export let devServer: Awaited<ReturnType<typeof createServer>> | undefined;
+
+if (isDev) {
+  devServer = await createServer({
+    appType: "custom",
+  });
+}
 
 export const pandaf = createPandaf<PandafProps>({
   templatesDir,
@@ -29,6 +39,7 @@ export const pandaf = createPandaf<PandafProps>({
   mode: isDev ? "development" : "production",
   manifestPath: path.resolve("dist/pdf-manifest.json"),
   css: isDev ? undefined : path.resolve("dist/pandaf.css"),
+  devServer,
 });
 
 const optionsSchema = t.Object({
@@ -163,6 +174,7 @@ const POS_ORDER_MOCK = {
 };
 
 export const app = new Elysia({ adapter: node() })
+  .use(devServer ? mountConnect(devServer.middlewares) : new Elysia())
   .use(
     openapi({
       path: "/docs",
@@ -259,9 +271,8 @@ export const app = new Elysia({ adapter: node() })
   .get(
     "/invoice/preview",
     async ({ query }) => {
-      const VITE_PORT = Number(process.env.VITE_PORT) || 5174;
       const html = await pandaf.previewHtml("invoice", INVOICE_MOCK, {
-        vitePort: VITE_PORT,
+        hmr: isDev,
         paperSize: (query.paperSize as PaperSize) ?? "a4",
         downloadUrl: "/invoice/pdf",
       });
@@ -278,16 +289,16 @@ export const app = new Elysia({ adapter: node() })
         summary: "Live preview of the invoice template",
         description:
           "Renders the invoice template in a preview page with paper-size " +
-          "selector and hot-reload via Vite HMR.",
+          "selector and hot-reload via Vite HMR. Edit the React template and " +
+          "the browser updates automatically.",
       },
     },
   )
   .get(
     "/pos-order/preview",
     async ({ query }) => {
-      const VITE_PORT = Number(process.env.VITE_PORT) || 5174;
       const html = await pandaf.previewHtml("pos.pos-order", POS_ORDER_MOCK, {
-        vitePort: VITE_PORT,
+        hmr: isDev,
         paperSize: (query.paperSize as PaperSize) ?? "a4",
         downloadUrl: "/pos-order/pdf",
       });
@@ -304,7 +315,8 @@ export const app = new Elysia({ adapter: node() })
         summary: "Live preview of the POS receipt template",
         description:
           "Renders the POS receipt template in a preview page with paper-size " +
-          "selector and hot-reload.",
+          "selector and hot-reload via Vite HMR. Edit the React template and " +
+          "the browser updates automatically.",
       },
     },
   )

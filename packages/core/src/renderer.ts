@@ -14,6 +14,8 @@ export interface PandafRenderer {
   render(name: string, data: unknown, section?: string): Promise<string>;
   layoutOf(name: string): Promise<{ header?: string; footer?: string }>;
   resolveCss(): Promise<string>;
+  /** Returns the Vite dev server if one is owned or provided. */
+  getDevServer(): ViteDevServer | undefined;
   close(): Promise<void>;
 }
 
@@ -89,6 +91,9 @@ export function createDevRenderer(opts: {
     async resolveCss() {
       return opts.cssOutput ? resolveCssFile(opts.cssOutput) : "";
     },
+    getDevServer() {
+      return opts.devServer ?? ownedServer;
+    },
     async close() {
       discovery = undefined;
       if (ownedServer) {
@@ -133,6 +138,9 @@ export function createProdRenderer(opts: {
       if (cssCache !== null) return cssCache;
       cssCache = await resolveCssFile(opts.cssOutput);
       return cssCache;
+    },
+    getDevServer() {
+      return undefined;
     },
     async close() {
       manifest = undefined;

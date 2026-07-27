@@ -1,4 +1,3 @@
-import type { ViteDevServer } from "vite";
 import path from "node:path";
 
 export interface PandafPluginOptions {
@@ -12,14 +11,6 @@ export interface PandafPluginOptions {
         basePath?: string;
         defaultPaperSize?: string;
       };
-}
-
-export function getVitePort(
-  server: ViteDevServer,
-): number | undefined {
-  const addr = server.httpServer?.address();
-  if (addr && typeof addr === "object") return addr.port;
-  return server.config.server.port;
 }
 
 export function resolvePluginOpts(opts: PandafPluginOptions): {

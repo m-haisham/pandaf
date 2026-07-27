@@ -68,6 +68,8 @@ export interface Pandaf<
     data: Props[T],
     options?: PreviewHtmlOptions,
   ): Promise<string>;
+  /** The Vite dev server when running in development mode. */
+  readonly devServer: ViteDevServer | undefined;
   close(): Promise<void>;
 }
 
@@ -89,6 +91,9 @@ export type {
 } from "@pandaf/core";
 export { Cache, NoopCache, InMemoryCache, RedisCache } from "@pandaf/core";
 export type { RedisClient } from "@pandaf/core";
+
+export { mountConnect } from "@pandaf/core";
+export type { ConnectMiddleware, ConnectApp } from "@pandaf/core";
 
 // React conventions:
 // 1. File-based: x.tsx (body), x-header.tsx (header), x-footer.tsx (footer)
@@ -326,10 +331,19 @@ export function createPandaf<
 
     const css = await renderer.resolveCss();
 
+    let hmr: PreviewHtmlOptions["hmr"] = previewOptions?.hmr;
+    if (hmr === true) {
+      const srv = renderer.getDevServer();
+      if (srv) {
+        const port = (srv.config.server.hmr as any)?.port;
+        if (typeof port === "number") hmr = port;
+      }
+    }
+
     return buildPreviewHtml(sections, {
       paperSize: previewOptions?.paperSize,
       css,
-      vitePort: previewOptions?.vitePort,
+      hmr,
       downloadUrl: previewOptions?.downloadUrl,
     });
   }
@@ -339,6 +353,9 @@ export function createPandaf<
     renderComposite,
     generatePdf,
     previewHtml,
+    get devServer() {
+      return renderer.getDevServer();
+    },
     async close() {
       await renderer.close();
       await driver.close();
