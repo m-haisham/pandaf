@@ -1,12 +1,15 @@
-# Architecture & Technical Specification: `@pandaf/core` + `@pandaf/vue`
+# Architecture & Technical Specification: `@pandaf/core` + `@pandaf/vue` + `@pandaf/react`
 
 ## 1. Executive Summary
 
-This document specifies the `@pandaf` packages — a set of libraries, not a service. Consumers keep their own HTTP server (Elysia, Express, Fastify, Hono, whatever) and their own routes. The packages handle the nitty-gritty — framework-level SSR compilation of print templates, dev-mode live compilation via the consumer's Vite dev server, Gotenberg orchestration, layout-measurement caching — behind three exports:
+This document specifies the `@pandaf` packages — a set of libraries, not a service. Consumers keep their own HTTP server (Elysia, Express, Fastify, Hono, whatever) and their own routes. The packages handle the nitty-gritty — framework-level SSR compilation of print templates, dev-mode live compilation via the consumer's Vite dev server, Gotenberg orchestration, layout-measurement caching — behind four exports:
 
 - **`@pandaf/core`** — framework-agnostic primitives: PDF drivers (Gotenberg, Chromium), HTML document-shell wrappers, asset-inlining utilities, live-preview page builder, pluggable cache backends, and measurement with caching. Designed to be reused by framework adapters.
 - **`@pandaf/vue`** — the Vue adapter built on `@pandaf/core`: `createPandaf()`, returns `renderHtml()` / `generatePdf()`. Re-exports everything from `@pandaf/core` for convenience.
 - **`@pandaf/vue/vite`** — a Vite plugin. Handles SSR build configuration (auto-discovers template entries), dev-mode preview middleware, type generation, and `closeBundle` manifest emission.
+- **`@pandaf/react`** — the React adapter built on `@pandaf/core`: `createPandaf()`, returns `renderHtml()` / `generatePdf()`. Re-exports everything from `@pandaf/core` for convenience. Also exports `mountConnect` for plugging into non-Elysia servers.
+- **`@pandaf/react/vite`** — a Vite plugin. Handles SSR build configuration (auto-discovers template entries), dev-mode preview middleware (with single-file named-`Header`/`Footer`/`Body` convention support), type generation, and `closeBundle` manifest emission.
+- **`@pandaf/react/connect`** — Connect middleware for mounting on non-Elysia servers.
 
 There is no CLI. The Vite plugin is the sole build path — every consumer runs `vite build` (their own, with the plugin in their config). Dev mode follows the standard Vite SSR pattern: `devServer` is optional — when omitted, the library lazy-creates a Vite server from the consumer's `vite.config.ts` and closes it on `pandaf.close()`.
 
@@ -24,12 +27,12 @@ There is no CLI. The Vite plugin is the sole build path — every consumer runs 
 └───────────────────────────────────────────────────────────────┘
                                │
                                ▼
-               ┌───────────────────────────────┐
-               │   @pandaf/vue (library)    │
-               │   createPandaf({ ... })         │
-               │   • renderHtml()  — Vue → HTML  │
-               │   • generatePdf() — + Gotenberg │
-               └───────────────────────────────┘
+                ┌──────────────────────────────────┐
+                │   @pandaf/vue or @pandaf/react  │
+                │   createPandaf({ ... })         │
+                │   • renderHtml()  — SSR → HTML  │
+                │   • generatePdf() — + Gotenberg │
+                └──────────────────────────────────┘
                   │             │             │
                   ▼             ▼             ▼
        Vite dev server     Gotenberg    Redis (measurement
@@ -41,7 +44,7 @@ The library never listens on a port and never owns routing. The consumer is resp
 
 ## 3. Architectural Decisions & Justifications
 
-### 3.1 Vue SSR + Tailwind over PDFKit/Native Libraries
+### 3.1 SSR (Vue or React) + Tailwind over PDFKit/Native Libraries
 
 Unchanged from the original spec: web technologies (flexbox, grid, reactive data binding) beat hand-computed X/Y coordinates for template authoring DX.
 
@@ -63,7 +66,7 @@ Assets stay Base64-inlined into the SSR HTML string per the original spec — de
 
 ### 3.5 Tailwind v4 via `@tailwindcss/vite`
 
-**Decision:** Tailwind CSS is compiled via the `@tailwindcss/vite` Vite plugin, included in the consumer's Vite config. During `vite dev`, the `@pandaf/vue/vite` plugin's `configureServer` watch compiles CSS on file changes and writes it to `.pandaf/pandaf.css`. During `vite build`, the `closeBundle` hook compiles the final CSS to `<outDir>/pandaf.css`. At runtime, `createPandaf()` reads the pre-compiled CSS and inlines it into every rendered section.
+**Decision:** Tailwind CSS is compiled via the `@tailwindcss/vite` Vite plugin, included in the consumer's Vite config. During `vite dev`, the pandaf Vite plugin's (`@pandaf/vue/vite` or `@pandaf/react/vite`) `configureServer` watch compiles CSS on file changes and writes it to `.pandaf/pandaf.css`. During `vite build`, the `closeBundle` hook compiles the final CSS to `<outDir>/pandaf.css`. At runtime, `createPandaf()` reads the pre-compiled CSS and inlines it into every rendered section.
 
 **Justification:** Using the standard `@tailwindcss/vite` plugin gives consumers a standard Vite CSS pipeline — they can import UI libraries, use `@source` directives, and get behaviour identical to their own Vite-based apps.
 
@@ -73,23 +76,23 @@ Assets stay Base64-inlined into the SSR HTML string per the original spec — de
 
 The `.pandaf/` directory at the consumer's project root holds auto-generated artifacts used **only during development**. These files are gitignored and never shipped to production.
 
-- **`pandaf.css`** — the compiled Tailwind v4 CSS, written by the `@pandaf/vue/vite` plugin's `configureServer` watch. `createPandaf()` reads it from this path in dev mode.
+- **`pandaf.css`** — the compiled Tailwind v4 CSS, written by the pandaf Vite plugin's `configureServer` watch. `createPandaf()` reads it from this path in dev mode.
 
 ### 4.1 Package Layout
 
 ```
-@pandaf/core/                          @pandaf/vue/
-├── src/                              ├── src/
-│   ├── index.ts      # re-exports    │   ├── index.ts      # createPandaf()
-│   ├── cache/        # Cache etc.    │   ├── renderer.ts    # dev vs. prod
-│   ├── drivers/      # PdfDriver etc.│   ├── discover.ts    # .vue discovery
-│   │   ├── types.ts                  │   ├── manifest.ts    # manifest I/O
-│   │   ├── gotenberg.ts              │   ├── render-component.ts
-│   │   ├── chromium.ts               │   ├── types.ts       # type generation
-│   │   └── measurement.ts            │   └── vite-plugin.ts # @pandaf/vue/vite
-│   ├── html.ts                       ├── package.json
-│   ├── inline-assets.ts              └── tsconfig.json
-│   └── preview.ts
+@pandaf/core/                          @pandaf/vue/                          @pandaf/react/
+├── src/                              ├── src/                              ├── src/
+│   ├── index.ts      # re-exports    │   ├── index.ts      # createPandaf()│   ├── index.ts      # createPandaf()
+│   ├── cache/        # Cache etc.    │   ├── renderer.ts    # dev vs. prod │   ├── renderer.ts    # dev vs. prod
+│   ├── drivers/      # PdfDriver etc.│   ├── discover.ts    # .vue disc.  │   ├── discover.ts    # .tsx disc.
+│   │   ├── types.ts                  │   ├── manifest.ts    # manifest I/O │   ├── manifest.ts    # manifest I/O
+│   │   ├── gotenberg.ts              │   ├── render-component.ts           │   ├── render-component.ts
+│   │   ├── chromium.ts               │   ├── types.ts       # type gen     │   ├── types.ts       # type gen
+│   │   └── measurement.ts            │   └── vite-plugin.ts # @pandaf/vue  │   ├── vite-plugin.ts # @pandaf/react
+│   ├── html.ts                       ├── package.json                      │   └── connect.ts     # connect mid.
+│   ├── inline-assets.ts              └── tsconfig.json                     ├── package.json
+│   └── preview.ts                                                          └── tsconfig.json
 ├── package.json
 └── tsconfig.json
 ```
@@ -114,6 +117,22 @@ The `.pandaf/` directory at the consumer's project root holds auto-generated art
     "vite": { "optional": true }
   }
 }
+
+// @pandaf/react — the React adapter, re-exports core + adds createPandaf()
+{
+  "name": "@pandaf/react",
+  "exports": {
+    ".": "./dist/index.js",
+    "./vite": "./dist/vite-plugin.js",
+    "./connect": "./dist/connect.js"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": { "optional": true }
+  }
+}
 ```
 
 `vite` is an **optional peer dependency** — a consumer running entirely in production never needs it installed.
@@ -121,7 +140,7 @@ The `.pandaf/` directory at the consumer's project root holds auto-generated art
 ### 4.2 Core API
 
 ```ts
-// @pandaf/vue — the main consumer-facing import
+// @pandaf/vue / @pandaf/react — the main consumer-facing import
 // (re-exports everything from @pandaf/core + adds createPandaf)
 export interface PandafOptions {
   templatesDir?: string;         // absolute path to the folder of .vue templates
@@ -221,9 +240,9 @@ Production takes none of this — `createProdRenderer` reads the manifest and im
 
 A template's layout (body + optional header/footer) is inferred from filenames in `templatesDir`:
 
-- `X.vue` → a **body** template named `X`.
-- `x-header.vue` / `x-footer.vue` → paired header/footer (preferred lowercase kebab).
-- `XHeader.vue` / `XFooter.vue` → paired header/footer (legacy PascalCase).
+- `X.vue` / `X.tsx` → a **body** template named `X`.
+- `x-header.vue` / `x-footer.vue` (`x-header.tsx` / `x-footer.tsx`) → paired header/footer (preferred lowercase kebab).
+- `XHeader.vue` / `XFooter.vue` (`XHeader.tsx` / `XFooter.tsx`) → paired header/footer (legacy PascalCase).
 - Subdirectories are allowed: `pos/pos-header.vue` pairs with `pos/pos-order.vue`.
 - A template name is its relative path with `/` → `.` (`pos/pos-order`).
 - **views/ convention**: when a `views/` subdirectory exists inside
@@ -231,6 +250,9 @@ A template's layout (body + optional header/footer) is inferred from filenames i
   components belong in `templates/components/` — they are imported by views and
   are not discovered as template entries. Template names stay clean:
   `views/invoice.vue` becomes `invoice`, not `views.invoice`.
+- **React single-file convention**: when no file-based header/footer aux file is
+  found, the renderer falls back to checking the body module for named `Header`
+  and `Footer` exports. This lets React users write everything in one `.tsx` file.
 
 ### 4.3.2 Inferred Template Types
 
@@ -246,7 +268,7 @@ pandaf.generatePdf("invoice", { header, body, footer, options }); // fully type-
 The consumer adds the pandaf plugin to their `vite.config.ts`:
 
 ```ts
-// vite.config.ts
+// vite.config.ts — Vue
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
@@ -262,7 +284,23 @@ export default defineConfig({
 ```
 
 ```ts
-// src/vite-plugin.ts
+// vite.config.ts — React
+import { defineConfig } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { pandaf } from '@pandaf/react/vite';
+
+export default defineConfig({
+  plugins: [
+    tailwindcss(),
+    react(),
+    pandaf({ templatesDir: './templates', cssEntry: 'assets/app.css' }),
+  ],
+});
+```
+
+```ts
+// src/vite-plugin.ts — shared logic
 export function pandaf(opts: PandafPluginOptions): Plugin {
   return {
     name: 'pandaf',
@@ -293,6 +331,7 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
 
 ```ts
 // Elysia — devServer is optional; library auto-creates from vite.config.ts
+// Use '@pandaf/vue' for Vue or '@pandaf/react' for React
 import { createPandaf, GotenbergDriver } from '@pandaf/vue';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -316,7 +355,7 @@ app
   .listen(3000);
 ```
 
-Live template editing works through the Vite dev server's HMR — edit a `.vue` template and the next `generatePdf()` call picks it up instantly via `vite.ssrLoadModule()`.
+Live template editing works through the Vite dev server's HMR — edit a `.vue` / `.tsx` template and the next `generatePdf()` call picks it up instantly via `vite.ssrLoadModule()`.
 
 ## 6. Infrastructure (Docker Compose)
 
@@ -341,5 +380,5 @@ Two layers:
 
 - **Core library tests** (in `@pandaf/core`'s repo): Vitest exercises cache backends, driver abstractions, ChromiumDriver with mocked Puppeteer, and measurement/caching primitives.
 - **Vue adapter tests** (in `@pandaf/vue`'s repo): Vitest exercises `createPandaf()` directly against fixture templates, in `mode: 'development'` (creating an explicit Vite server and asserting `ssrLoadModule` is used) and `mode: 'production'` (asserting the manifest path is read with no Vite involved).
-- **Consumer tests**: `supertest`-style requests against the consumer's own router, asserting the route returns `Content-Type: application/pdf` and that `pdf-parse` can read the resulting buffer.
+- **React adapter tests** (in `@pandaf/react`'s repo): Vitest exercises `createPandaf()` in dev and production modes, verifies `discoverLayouts()` with `.tsx` filtering, `generateTypes()` with `ComponentPropsWithoutRef`, HMR via WebSocket events, and Connect middleware integration with Elysia.
 - **Consumer tests**: `supertest`-style requests against the consumer's own router, asserting the route returns `Content-Type: application/pdf` and that `pdf-parse` can read the resulting buffer.
