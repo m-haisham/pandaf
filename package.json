@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "build:server": "turbo build:server",
     "start": "turbo start --filter=example-vue",
     "typecheck": "turbo typecheck",
     "test": "turbo test",

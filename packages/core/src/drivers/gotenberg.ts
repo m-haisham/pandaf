@@ -28,13 +28,27 @@ export class GotenbergDriver extends PdfDriver {
     form.append("paperHeight", String(input.paperHeight ?? 11.69));
     form.append("backgroundGraphics", String(input.backgroundGraphics ?? true));
 
-    const res = await fetch(`${this.baseUrl}/forms/chromium/convert/html`, {
-      method: "POST",
-      body: form,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/forms/chromium/convert/html`, {
+        method: "POST",
+        body: form,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Failed to connect to Gotenberg at ${this.baseUrl}. ` +
+          `Is the service running? (${message})`,
+      );
+    }
 
-    if (!res.ok || !res.body) {
-      throw new Error(`Gotenberg conversion failed (${res.status})`);
+    if (!res.ok) {
+      throw new Error(
+        `Gotenberg conversion failed (${res.status} ${res.statusText})`,
+      );
+    }
+    if (!res.body) {
+      throw new Error("Gotenberg conversion succeeded but returned an empty body");
     }
     return res.body;
   }

@@ -180,21 +180,30 @@ export function createPandaf<
 
   async function renderComposite(template: any, data: any): Promise<string> {
     const layout = await renderer.layoutOf(template);
-    const body = await renderOne(template, data.body);
-    const header =
+
+    const bodyRaw = await renderer.render(template, data.body);
+    const body = await inlineHtmlAssets(bodyRaw, assetsDir);
+
+    const headerRaw =
       layout.header && data.header !== undefined
-        ? await renderOne(layout.header, data.header, "header")
+        ? await renderer.render(layout.header, data.header)
         : null;
-    const footer =
+    const header = headerRaw ? await inlineHtmlAssets(headerRaw, assetsDir) : null;
+
+    const footerRaw =
       layout.footer && data.footer !== undefined
-        ? await renderOne(layout.footer, data.footer, "footer")
+        ? await renderer.render(layout.footer, data.footer)
         : null;
+    const footer = footerRaw ? await inlineHtmlAssets(footerRaw, assetsDir) : null;
+
+    const css = await renderer.resolveCss();
+
     const sections = [
       header ? `<div class="pandaf-header">${header}</div>` : "",
       `<div class="pandaf-body">${body}</div>`,
       footer ? `<div class="pandaf-footer">${footer}</div>` : "",
     ].join("\n");
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${sections}</body></html>`;
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${sections}</body></html>`;
   }
 
   async function generatePdf(

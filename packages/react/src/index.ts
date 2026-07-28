@@ -239,25 +239,33 @@ export function createPandaf<
     const hasFileFooter =
       resolved.footer !== template && resolved.footer !== undefined;
 
-    const body = await renderOne(template, data.body);
-    const header =
+    const bodyRaw = await renderer.render(template, data.body);
+    const body = await inlineHtmlAssets(bodyRaw, assetsDir);
+
+    const headerRaw =
       resolved.header && data.header !== undefined
         ? hasFileHeader
-          ? await renderOne(resolved.header, data.header, "header")
-          : await renderSection(template, data.header, "header", template)
+          ? await renderer.render(resolved.header, data.header, "Header")
+          : await renderer.render(template, data.header, "Header")
         : null;
-    const footer =
+    const header = headerRaw ? await inlineHtmlAssets(headerRaw, assetsDir) : null;
+
+    const footerRaw =
       resolved.footer && data.footer !== undefined
         ? hasFileFooter
-          ? await renderOne(resolved.footer, data.footer, "footer")
-          : await renderSection(template, data.footer, "footer", template)
+          ? await renderer.render(resolved.footer, data.footer, "Footer")
+          : await renderer.render(template, data.footer, "Footer")
         : null;
+    const footer = footerRaw ? await inlineHtmlAssets(footerRaw, assetsDir) : null;
+
+    const css = await renderer.resolveCss();
+
     const sections = [
       header ? `<div class="pandaf-header">${header}</div>` : "",
       `<div class="pandaf-body">${body}</div>`,
       footer ? `<div class="pandaf-footer">${footer}</div>` : "",
     ].join("\n");
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${sections}</body></html>`;
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${sections}</body></html>`;
   }
 
   async function generatePdf(

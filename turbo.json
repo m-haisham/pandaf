@@ -5,13 +5,17 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "build:server": {
+      "dependsOn": ["build"],
+      "outputs": ["dist/**"]
+    },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },
     "start": {
-      "dependsOn": ["build"],
+      "dependsOn": ["build", "build:server"],
       "cache": false,
       "persistent": true
     },
