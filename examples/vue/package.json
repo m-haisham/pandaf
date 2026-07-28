@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --ignore '**/*.timestamp-*.mjs' src/server.ts",
-    "build": "vite build",
-    "start": "NODE_ENV=production tsx src/server.ts",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "start": "NODE_ENV=production node dist/server.js",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
