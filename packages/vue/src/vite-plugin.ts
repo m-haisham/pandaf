@@ -216,13 +216,27 @@ async function compileAndSaveCss(
   cssEntry: string,
   outDir: string,
 ): Promise<void> {
-  const { createServer } = await import("vite");
-  const tailwindcss = (await import("@tailwindcss/vite")).default;
+  const { createServer, loadConfigFromFile } = await import("vite");
+
+  // Load the consumer's vite.config.* so their plugins (Tailwind,
+  // component libraries, path aliases, etc.) are active. We create a
+  // dev server (command: "serve") so we can ssrLoadModule the CSS entry.
+  const loaded = await loadConfigFromFile(
+    { command: "serve", mode: "production" },
+    undefined,
+    process.cwd(),
+  );
+
+  // Drop the pandaf plugin itself to avoid recursion / side-effects
+  // (configureServer hooks, watchers, etc.) on this temp server.
+  const userPlugins = (loaded?.config?.plugins ?? [])
+    .flat()
+    .filter((p: any) => p?.name !== "pandaf");
 
   const server = await createServer({
+    ...loaded?.config,
     configFile: false,
-    root: path.dirname(cssEntry),
-    plugins: [tailwindcss()],
+    plugins: userPlugins,
     server: { middlewareMode: true },
     appType: "custom",
     css: { devSourcemap: false },
