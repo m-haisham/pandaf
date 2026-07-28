@@ -59,7 +59,7 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
 
   return {
     name: "pandaf",
-    configureServer(server) {
+    async configureServer(server) {
       void generateTypes(opts.templatesDir, typesOut).catch(() => {});
 
       const watcher = server.watcher;
@@ -101,7 +101,7 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
           }
         };
 
-        void writeCss();
+        await writeCss();
 
         watcher.on("change", (file: string) => {
           if (file === cssEntry || file.startsWith(opts.templatesDir)) {
