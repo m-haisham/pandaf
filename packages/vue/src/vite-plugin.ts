@@ -4,7 +4,11 @@ import type { Plugin } from "vite";
 import { discoverLayouts } from "./discover.js";
 import { writeManifest } from "./manifest.js";
 import { generateTypes } from "./types.js";
-import { inlineAssetsPlugin, buildPreviewHtml, type PaperSize } from "@pandaf/core";
+import {
+  inlineAssetsPlugin,
+  buildPreviewHtml,
+  type PaperSize,
+} from "@pandaf/core";
 import { renderComponent } from "./render-component.js";
 import { resolvePluginOpts, type PandafPluginOptions } from "@pandaf/core";
 
@@ -17,8 +21,7 @@ export type { PandafPluginOptions };
 export function pandaf(opts: PandafPluginOptions): Plugin {
   const { outDir, typesOut, cssEntry, cssDevOut } = resolvePluginOpts(opts);
 
-  const previewEnabled =
-    opts.preview !== undefined && opts.preview !== false;
+  const previewEnabled = opts.preview !== undefined && opts.preview !== false;
   const previewBase =
     opts.preview === true || typeof opts.preview === "boolean"
       ? "/__pandaf"
@@ -34,7 +37,9 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
   async function getDiscovery() {
     if (!discovery) {
       const p = discoverLayouts(opts.templatesDir);
-      discoveryCache ??= p.then((d) => { discovery = d; });
+      discoveryCache ??= p.then((d) => {
+        discovery = d;
+      });
       await discoveryCache;
     }
     return discovery!;
@@ -96,8 +101,8 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
             const css = (mod as { default?: string }).default ?? "";
             await fs.mkdir(path.dirname(cssDevOut), { recursive: true });
             await fs.writeFile(cssDevOut, css);
-          } catch {
-            /* silently retry next change */
+          } catch (e) {
+            console.error("[pandaf] Failed to compile CSS:", e);
           }
         };
 
@@ -143,23 +148,17 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
             }
 
             const body = await ssrRenderSection(server, layout.body, {});
-            const header =
-              layout.header
-                ? await ssrRenderSection(server, layout.header, {})
-                : null;
-            const footer =
-              layout.footer
-                ? await ssrRenderSection(server, layout.footer, {})
-                : null;
+            const header = layout.header
+              ? await ssrRenderSection(server, layout.header, {})
+              : null;
+            const footer = layout.footer
+              ? await ssrRenderSection(server, layout.footer, {})
+              : null;
 
             const sections = [
-              header
-                ? '<div class="pandaf-header">' + header + "</div>"
-                : "",
+              header ? '<div class="pandaf-header">' + header + "</div>" : "",
               '<div class="pandaf-body">' + body + "</div>",
-              footer
-                ? '<div class="pandaf-footer">' + footer + "</div>"
-                : "",
+              footer ? '<div class="pandaf-footer">' + footer + "</div>" : "",
             ].join("\n");
 
             // Compile Tailwind CSS via the running Vite server.
