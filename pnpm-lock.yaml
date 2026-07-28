@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@sinclair/typebox': '>=0.34.0 <1'
+
 importers:
 
   .:
@@ -822,9 +825,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@sinclair/typebox@0.27.12':
-    resolution: {integrity: sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g==}
-
   '@sinclair/typebox@0.34.52':
     resolution: {integrity: sha512-XiMQh7qqVlxZzcVD+kkGMNGMzcTrDMLWI7S4x7z1MkCkbDPrekpZXEUK0eZqZFMuHQg2a2DZOcDIh9o5v3Gonw==}
 
@@ -1332,7 +1332,7 @@ packages:
   elysia@1.4.29:
     resolution: {integrity: sha512-GwMRGGwSdjfPt+w3LA0fqTuYJtS8uVRJicvoar98/HrO5qdFKDc9CwjIb6Kja+v39lkY+58hr2JvdR9jQzlUuA==}
     peerDependencies:
-      '@sinclair/typebox': '>= 0.34.0 < 1'
+      '@sinclair/typebox': '>=0.34.0 <1'
       '@types/bun': '>= 1.2.0'
       exact-mirror: '>= 0.0.9'
       file-type: '>= 20.0.0'
@@ -2484,7 +2484,7 @@ snapshots:
 
   '@jest/schemas@29.6.3':
     dependencies:
-      '@sinclair/typebox': 0.27.12
+      '@sinclair/typebox': 0.34.52
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -2604,8 +2604,6 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
-
-  '@sinclair/typebox@0.27.12': {}
 
   '@sinclair/typebox@0.34.52': {}
 
