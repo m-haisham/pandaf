@@ -4,11 +4,6 @@
   "private": true,
   "description": "Vue SSR → PDF generation — monorepo",
   "license": "MIT",
-  "pnpm": {
-    "overrides": {
-      "@sinclair/typebox": ">=0.34.0 <1"
-    }
-  },
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",

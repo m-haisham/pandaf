@@ -4,3 +4,5 @@ packages:
 allowBuilds:
   esbuild: false
   puppeteer: false
+overrides:
+  "@sinclair/typebox": ">=0.34.0 <1"
