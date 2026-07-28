@@ -80,11 +80,14 @@ export async function inlineCssAssets(
 // fs URL), absolute paths, and paths relative to `assetsDir`.
 function resolveAssetPath(ref: string, assetsDir: string): string | null {
   if (/^(data:|https?:|#|\/\/)/i.test(ref)) return null;
+  // Strip query strings and fragment identifiers so URLs like
+  // /assets/sprite.svg#a or /assets/font.woff2?v=1 resolve to the file.
+  const clean = ref.split(/[?#]/)[0];
   let p: string;
-  if (ref.startsWith("/@fs/")) p = ref.slice("/@fs/".length);
-  else if (ref.startsWith("/assets/")) p = path.join(assetsDir, ref.slice("/assets/".length));
-  else if (path.isAbsolute(ref)) p = ref;
-  else p = path.resolve(assetsDir, ref);
+  if (clean.startsWith("/@fs/")) p = clean.slice("/@fs/".length);
+  else if (clean.startsWith("/assets/")) p = path.join(assetsDir, clean.slice("/assets/".length));
+  else if (path.isAbsolute(clean)) p = clean;
+  else p = path.resolve(assetsDir, clean);
   return p;
 }
 
@@ -110,7 +113,7 @@ export async function inlineHtmlAssets(
 
   // <img src>, <image href>, <use href>, <source src>, <link href> (images)
   const attrRe =
-    /(<(?:img|image|use|source)\b[^>]*?\b(?:src|href|xlink:href)=)(["'])(.*?)\2/gi;
+    /(<(?:img|image|use|source|link)\b[^>]*?\b(?:src|href|xlink:href)=)(["'])(.*?)\2/gi;
   let out = html;
   const attrTasks: Promise<void>[] = [];
   let m: RegExpExecArray | null;
