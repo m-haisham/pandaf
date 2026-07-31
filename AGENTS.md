@@ -348,6 +348,28 @@ Rules:
 - **Use the project's domain terms**, not generic synonyms — if the product says "booking," the code says `booking`, not `reservation`.
 - **No shadowing**: don't reuse a name for a different purpose in a nested scope, even if TS allows it.
 - **Singular/plural must match cardinality**: a single item is never named `items`.
+- **No abbreviations**: `templateName`, not `tmplName`; `driverOptions`, not `drvOpts`. A reader should never need a comment to know what a variable holds.
+
+## Comments
+
+- Default to no comments. Code should read clearly from names and structure alone.
+- Doc comments (`/** ... */`) are for succinct *intent*, one line where possible — what the thing is for, not how it works. Skip `@param`, `@returns`, and other tag boilerplate; the type signature already says that.
+- Inline comments are only for **why**, never **what**: a non-obvious invariant, a constraint from `docs/reference.md`, a workaround for a specific bug. If deleting the comment wouldn't confuse a future reader, delete it.
+
+## TypeScript
+
+- Everything is fully typed. `any` is never allowed — not as a type annotation, not as an implicit fallback, not in a cast. `@ts-expect-error` isn't a substitute either.
+- `unknown` is the correct tool at real boundaries where a value's shape genuinely isn't known yet — parsing JSON output, `JSON.parse`, a library callback typed loosely upstream. Narrow it (a type guard, a zod schema, a discriminated check) before using it as anything specific. Don't reach for `unknown` where the real type is already knowable.
+- `strict` mode is on in all `tsconfig.json` files, alongside `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` — don't relax these.
+- Explicit return types on exported functions.
+- Prefer `readonly` fields and `ReadonlyArray`/`ReadonlyMap` for anything representing committed/immutable data.
+- Type-check with **`vue-tsc`** (the root `pnpm typecheck` script), not plain `tsc` — `ComponentProps` reads the real SFC props via Volar.
+- Each consumer route uses TypeBox `t.Object` schemas for payload validation at the edge — mirror the SFC props exactly.
+
+## Hygiene
+
+- No dead code, no commented-out code — delete it; git history has it.
+- No speculative error handling for cases that can't occur given the code above it. Validate only at real boundaries: CLI input, user-provided options, file reads, Gotenberg/Chromium responses.
 
 ## Testing Notes (§7)
 
