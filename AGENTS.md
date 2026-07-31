@@ -39,6 +39,8 @@ Four exports (see `docs/reference.md` §4):
   `ChromiumDriver`, `PuppeteerMeasurer`, `resolveMargins`, `Cache`,
   `InMemoryCache`, `RedisCache`, `wrapBody`/`wrapHeader`/`wrapFooter`,
   `inlineAssetsPlugin`, `buildPreviewHtml`, etc.
+- **`@pandaf/core/connect`** — Connect/Express middleware bridge (`mountConnect`):
+  optional peer dependency (`elysia`) loaded only when this subpath is imported.
 - **`@pandaf/vue`** — `createPandaf(options)` returning
   `{ renderHtml, renderComposite, generatePdf, previewHtml, close }`. Re-exports
   everything from `@pandaf/core` for convenience.
@@ -56,6 +58,7 @@ Four exports (see `docs/reference.md` §4):
   `pdf-manifest.json`. Handles the single-file React convention (named
   `Header`/`Footer`/`Body` exports) in dev preview.
 - **`@pandaf/react/connect`** — Connect middleware for mounting on non-Elysia servers.
+- **`@pandaf/vue/connect`** — Connect middleware for mounting on non-Elysia servers.
 
 There is no CLI. The Vite plugin is the sole build path — every consumer runs
 `vite build` with the plugin in their config.
@@ -112,6 +115,10 @@ drivers/            pluggable PDF backends
 html.ts             wrapBody() / wrapHeader() / wrapFooter() document shells
 inline-assets.ts    inlineAssetsPlugin() + inlineCssAssets() + inlineHtmlAssets()
 preview.ts          buildPreviewHtml() + PAPER_SIZES
+layout.ts           shared layout types (TemplateKind, DiscoveredLayout, Discovery, PdfManifest)
+renderer.ts         dev vs. prod render strategy (createDevRenderer / createProdRenderer)
+vite-utils.ts       resolvePluginOpts() + PandafPluginOptions
+connect.ts          mountConnect() — Elysia/Connect bridge (optional peer: elysia)
 ```
 
 ### `packages/vue/src` — Vue adapter (@pandaf/vue)
@@ -370,6 +377,16 @@ Rules:
 
 - No dead code, no commented-out code — delete it; git history has it.
 - No speculative error handling for cases that can't occur given the code above it. Validate only at real boundaries: CLI input, user-provided options, file reads, Gotenberg/Chromium responses.
+
+## Module Organization
+
+- **Internal imports within a subfolder use sibling paths** (`./types.js`), never the subfolder's own barrel (`./index.js`). Barrel files (`cache/index.ts`, `drivers/index.ts`) are re-export surfaces for *external* consumers only.
+- **Cross-folder imports go through the target's barrel** when importing a public symbol (`../cache/index.js`), or through the specific sibling file when importing an internal/unguaranteed symbol.
+- **No circular dependencies.** The dependency graph must be a clean DAG: `index.ts` → subfolder barrels → sibling files within each subfolder. Subfolder files must never import from `index.ts` or from a sibling subfolder's barrel in a way that creates a cycle.
+- **Optional peer dependencies must be lazily imported.** If a module depends on an optional peer (`elysia`, `vite`, `puppeteer`), it must use a dynamic `import()` inside the function that needs it — never a static top-level `import`. The library must be loadable without the optional peer installed. Static `import type` is fine (erased at runtime).
+- **Types live next to their implementation.** Abstract base classes go in `types.ts` within a subfolder. Implementation-specific types stay with their implementation file. Shared cross-cutting types get their own file. Don't create a separate `types/` folder unless there are many shared types reused across multiple modules.
+- **Barrel files re-export only the public API.** Internal helpers, constants, and test-only exports stay out of barrels. Test files import directly from the source file (e.g., `../src/drivers/measurement.js`).
+- **One responsibility per file.** Each file exports a single class, a single factory function, or a cohesive set of related types/utilities. If a file grows past ~200 lines, consider splitting it.
 
 ## Testing Notes (§7)
 

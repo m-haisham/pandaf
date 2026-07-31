@@ -13,6 +13,12 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./connect": {
+      "types": "./dist/index-connect.d.ts",
+      "import": "./dist/index-connect.js",
+      "require": "./dist/index-connect.js",
+      "default": "./dist/index-connect.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

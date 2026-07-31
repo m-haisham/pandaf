@@ -14,7 +14,7 @@ import {
   resolveMargins,
 } from "@pandaf/core";
 import { Cache, NoopCache } from "@pandaf/core";
-import { mountConnect } from "@pandaf/core";
+import { mountConnect } from "@pandaf/core/connect";
 import {
   buildPreviewHtml,
   type PreviewHtmlOptions,
@@ -97,7 +97,7 @@ export { Cache, NoopCache, InMemoryCache, RedisCache } from "@pandaf/core";
 export type { RedisClient } from "@pandaf/core";
 
 export { mountConnect };
-export type { ConnectMiddleware, ConnectApp } from "@pandaf/core";
+export type { ConnectMiddleware, ConnectApp } from "@pandaf/core/connect";
 
 // React conventions:
 // 1. File-based: x.tsx (body), x-header.tsx (header), x-footer.tsx (footer)

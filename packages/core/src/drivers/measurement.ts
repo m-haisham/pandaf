@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ChromiumDriver } from "./chromium.js";
-import type { Cache } from "../cache/index.js";
+import type { Cache } from "../cache/types.js";
 
 /** CSS pixels per inch — Chromium's print box uses 96 CSS px per inch. */
 export const PX_PER_INCH = 96;

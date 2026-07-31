@@ -1,2 +1,2 @@
-export { mountConnect } from "@pandaf/core";
-export type { ConnectMiddleware, ConnectApp } from "@pandaf/core";
+export { mountConnect } from "@pandaf/core/connect";
+export type { ConnectMiddleware, ConnectApp } from "@pandaf/core/connect";
