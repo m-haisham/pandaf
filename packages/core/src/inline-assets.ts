@@ -80,15 +80,13 @@ export async function inlineCssAssets(
 // fs URL), absolute paths, and paths relative to `assetsDir`.
 function resolveAssetPath(ref: string, assetsDir: string): string | null {
   if (/^(data:|https?:|#|\/\/)/i.test(ref)) return null;
-  // Strip query strings and fragment identifiers so URLs like
-  // /assets/sprite.svg#a or /assets/font.woff2?v=1 resolve to the file.
   const clean = ref.split(/[?#]/)[0];
-  let p: string;
-  if (clean.startsWith("/@fs/")) p = clean.slice("/@fs/".length);
-  else if (clean.startsWith("/assets/")) p = path.join(assetsDir, clean.slice("/assets/".length));
-  else if (path.isAbsolute(clean)) p = clean;
-  else p = path.resolve(assetsDir, clean);
-  return p;
+  let resolvedPath: string;
+  if (clean.startsWith("/@fs/")) resolvedPath = clean.slice("/@fs/".length);
+  else if (clean.startsWith("/assets/")) resolvedPath = path.join(assetsDir, clean.slice("/assets/".length));
+  else if (path.isAbsolute(clean)) resolvedPath = clean;
+  else resolvedPath = path.resolve(assetsDir, clean);
+  return resolvedPath;
 }
 
 // Inlines local asset references in rendered HTML (and any inline <style>

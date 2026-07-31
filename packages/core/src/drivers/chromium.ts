@@ -19,31 +19,37 @@ export interface ChromiumDriverOptions {
   reuseBrowser?: boolean;
 }
 
-// Local Chromium driver backed by Puppeteer. Unlike Gotenberg it needs no
-// separate service — it launches (or connects to) a headless Chromium and
-// prints the composed document via the DevTools `Page.printToPDF` protocol.
-//
-// Two modes:
-//   • **Local** (default): `puppeteer.launch()` starts a bundled or
-//     `executablePath` Chromium.
-//   • **Remote**: when `browserWSEndpoint`/`browserURL` is supplied, the driver
-//     `puppeteer.connect()`s to an already-running Chromium — e.g. a
-//     `browserless/chromium` Docker container or browserless.io — so no browser
-//     binary is needed on the host.
-//
-// Puppeteer is an OPTIONAL peer dependency: it is only imported lazily, inside
-// this driver, so consumers who only ever use Gotenberg never need to install
-// it. The library never imports it at module top level.
+export interface PuppeteerPage {
+  setContent(html: string, options: { waitUntil: string }): Promise<void>;
+  evaluate(fn: (...args: never[]) => unknown, ...args: unknown[]): Promise<unknown>;
+  evaluate<T>(fn: () => T): Promise<T>;
+  pdf(options: Record<string, unknown>): Promise<Uint8Array>;
+  setViewport(options: { width: number; height: number }): Promise<void>;
+  close(): Promise<void>;
+  browser(): PuppeteerBrowser;
+}
+
+export interface PuppeteerBrowser {
+  newPage(): Promise<PuppeteerPage>;
+  close(): Promise<void>;
+  disconnect(): Promise<void>;
+}
+
+interface PuppeteerModule {
+  launch(options: Record<string, unknown>): Promise<PuppeteerBrowser>;
+  connect(options: Record<string, unknown>): Promise<PuppeteerBrowser>;
+}
+
+/** Local Chromium driver backed by Puppeteer (optional peer dependency). */
 export class ChromiumDriver extends PdfDriver {
   readonly name = "chromium";
 
-  private browser: any = null;
+  private browser: PuppeteerBrowser | null = null;
   private readonly browserWSEndpoint?: string;
   private readonly browserURL?: string;
   private readonly executablePath?: string;
-  private readonly launchArgs: string[];
+  private readonly launchArgs: readonly string[];
   private readonly reuseBrowser: boolean;
-  /** True when connected to a remote browser we should NOT close on `close()`. */
   private readonly connected: boolean;
 
   constructor(options: ChromiumDriverOptions = {}) {
@@ -56,12 +62,12 @@ export class ChromiumDriver extends PdfDriver {
     this.connected = Boolean(this.browserWSEndpoint || this.browserURL);
   }
 
-  private async getPuppeteer(): Promise<any> {
+  private async getPuppeteer(): Promise<PuppeteerModule> {
     try {
-      return await import("puppeteer");
+      return (await import("puppeteer")) as PuppeteerModule;
     } catch {
       try {
-        return await import("puppeteer-core");
+        return (await import("puppeteer-core")) as PuppeteerModule;
       } catch {
         throw new Error(
           "The 'chromium' driver requires 'puppeteer' (or 'puppeteer-core') " +
@@ -72,11 +78,10 @@ export class ChromiumDriver extends PdfDriver {
     }
   }
 
-  private async getBrowserInternal(): Promise<any> {
+  private async getBrowserInternal(): Promise<PuppeteerBrowser> {
     if (this.browser) return this.browser;
     const puppeteer = await this.getPuppeteer();
     if (this.connected) {
-      // Attach to a remote browser (browserless, Docker Chromium, etc.).
       this.browser = await puppeteer.connect({
         browserWSEndpoint: this.browserWSEndpoint,
         browserURL: this.browserURL,
@@ -91,13 +96,12 @@ export class ChromiumDriver extends PdfDriver {
     return this.browser;
   }
 
-  /** Returns the underlying Puppeteer Browser instance, creating it if needed. Used by PuppeteerMeasurer to compose without duplicating connection logic. */
-  async getBrowser(): Promise<any> {
+  /** Returns the underlying Puppeteer Browser instance, creating it if needed. */
+  async getBrowser(): Promise<PuppeteerBrowser> {
     return this.getBrowserInternal();
   }
 
   async render(input: DriverRenderInput): Promise<ReadableStream> {
-    const puppeteer = await this.getPuppeteer();
     const browser = await this.getBrowserInternal();
     const page = await browser.newPage();
     try {
@@ -125,7 +129,7 @@ export class ChromiumDriver extends PdfDriver {
         );
       }
 
-      const pdf: Uint8Array = await page.pdf({
+      const pdf = await page.pdf({
         printBackground: input.backgroundGraphics ?? true,
         format: input.paperSize ?? "A4",
         marginTop: input.marginTop ?? 0,
@@ -152,8 +156,6 @@ export class ChromiumDriver extends PdfDriver {
   async close(): Promise<void> {
     if (this.browser) {
       if (this.connected) {
-        // We attached to a remote browser — detach without killing it so the
-        // host (browserless/Docker) keeps serving other clients.
         await this.browser.disconnect();
       } else {
         await this.browser.close();

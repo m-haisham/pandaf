@@ -1,20 +1,3 @@
-// ---------------------------------------------------------------------------
-// @pandaf/core — framework-agnostic primitives for PDF generation
-// ---------------------------------------------------------------------------
-//
-// This package provides the low-level building blocks:
-//   - PDF drivers (Gotenberg, Chromium/Puppeteer)
-//   - Header/footer DOM measurement with caching
-//   - HTML document-shell wrappers
-//   - Asset inlining (Base64) for offline-safe PDFs
-//   - Live preview page builder
-//   - Pluggable cache backends (memory, Redis, noop)
-//   - Shared renderer factories and layout types for framework adapters
-//
-// Framework adapters (@pandaf/vue, @pandaf/react, etc.) build on top of
-// this package to provide SSR + template discovery for their framework.
-// ---------------------------------------------------------------------------
-
 export { Cache, DEFAULT_TTL_MS } from "./cache/types.js";
 export { NoopCache } from "./cache/noop.js";
 export { InMemoryCache } from "./cache/memory.js";
@@ -31,6 +14,8 @@ export {
 export type {
   DriverRenderInput,
   ChromiumDriverOptions,
+  PuppeteerBrowser,
+  PuppeteerPage,
   MarginInput,
 } from "./drivers/index.js";
 

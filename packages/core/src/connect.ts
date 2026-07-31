@@ -46,14 +46,14 @@ async function transformRequest(
   }
 
   return createRequest({
-    method: request.method as any,
+    method: request.method as "GET",
     url: parsedURL.pathname + parsedURL.search,
     path: parsedURL.pathname,
     originalUrl: parsedURL.pathname + parsedURL.search,
     baseUrl: parsedURL.origin,
     headers,
     query,
-    body: body as any,
+    body: body as Record<string, unknown> | undefined,
   }) as MockRequest<IncomingMessage>;
 }
 
@@ -78,8 +78,11 @@ function makeResponse(
     req: request,
   });
 
-  if (!(response as any)._implicitHeader) {
-    (response as any)._implicitHeader = () => {};
+  const resWithInternals = response as MockResponse<ServerResponse> & {
+    _implicitHeader?: () => void;
+  };
+  if (!resWithInternals._implicitHeader) {
+    resWithInternals._implicitHeader = () => {};
   }
 
   const end = response.end;
@@ -123,5 +126,5 @@ export function mountConnect(app: ConnectApp) {
         }
       });
     },
-  ) as any;
+  );
 }

@@ -14,23 +14,18 @@ export interface PandafRenderer {
   render(name: string, data: unknown, section?: string): Promise<string>;
   layoutOf(name: string): Promise<{ header?: string; footer?: string }>;
   resolveCss(): Promise<string>;
-  /** Returns the Vite dev server if one is owned or provided. */
   getDevServer(): ViteDevServer | undefined;
   close(): Promise<void>;
 }
 
-async function resolveCssFile(cssOutput: string): Promise<string> {
+async function resolveCssFile(cssOutputPath: string): Promise<string> {
   try {
-    return await fs.readFile(cssOutput, "utf-8");
+    return await fs.readFile(cssOutputPath, "utf-8");
   } catch {
-    console.warn(`[pandaf] Failed to read CSS output from ${cssOutput}`);
+    console.warn(`[pandaf] Failed to read CSS output from ${cssOutputPath}`);
     return "";
   }
 }
-
-// ---------------------------------------------------------------------------
-// DevRenderer — uses a Vite dev server (consumer-provided or auto-created)
-// ---------------------------------------------------------------------------
 
 export function createDevRenderer(opts: {
   templatesDir: string;
@@ -104,10 +99,6 @@ export function createDevRenderer(opts: {
   };
 }
 
-// ---------------------------------------------------------------------------
-// ProdRenderer — pre-compiled SSR modules from the build manifest
-// ---------------------------------------------------------------------------
-
 export function createProdRenderer(opts: {
   manifestPath: string;
   cssOutput: string;
@@ -124,15 +115,15 @@ export function createProdRenderer(opts: {
 
   return {
     async render(name, data, section) {
-      const m = await ensure();
-      const modPath = m.entries[name];
-      if (!modPath) throw new Error(`Unknown template: ${name}`);
-      const mod = await import(pathToFileURL(modPath).href);
+      const pdfManifest = await ensure();
+      const modulePath = pdfManifest.entries[name];
+      if (!modulePath) throw new Error(`Unknown template: ${name}`);
+      const mod = await import(pathToFileURL(modulePath).href);
       return opts.renderMod(mod, data, section);
     },
     async layoutOf(name) {
-      const m = await ensure();
-      return m.layouts[name] ?? {};
+      const pdfManifest = await ensure();
+      return pdfManifest.layouts[name] ?? {};
     },
     async resolveCss() {
       if (cssCache !== null) return cssCache;

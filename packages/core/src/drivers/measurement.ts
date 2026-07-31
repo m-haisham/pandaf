@@ -1,11 +1,3 @@
-// Pre-flight DOM measurement — renders header/footer HTML in a headless
-// Chromium and returns the true rendered height in inches. Used to set
-// page margins automatically so body content never collides with banners.
-//
-// Follows the same abstract-class pattern as PdfDriver: ChromiumMeasurer
-// is the contract, PuppeteerMeasurer is the concrete implementation that
-// reuses a ChromiumDriver's browser connection.
-
 import { createHash } from "node:crypto";
 import type { ChromiumDriver } from "./chromium.js";
 import type { Cache } from "../cache/index.js";
@@ -87,10 +79,10 @@ export class PuppeteerMeasurer extends ChromiumMeasurer {
     try {
       await page.setViewport({ width, height: 3000 });
       await page.setContent(html, { waitUntil: "networkidle0" });
-      const px: number = await page.evaluate(() => {
+      const px = await page.evaluate(() => {
         const el = document.body.firstElementChild;
         return el ? Math.ceil(el.getBoundingClientRect().height) : 0;
-      });
+      }) as number;
       return px / PX_PER_INCH;
     } catch {
       console.error(
