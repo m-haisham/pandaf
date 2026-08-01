@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-01
+
 ### Added
 
 - **core:** Added `mountConnect` adapter to mount Connect/Express-style middleware (e.g. Vite's dev server middlewares) inside an Elysia server. Uses `node-mocks-http` to adapt between Web and Node.js request/response types. Exported as `@pandaf/core` and re-exported from both `@pandaf/vue` and `@pandaf/react` (also available at `@pandaf/vue/connect` and `@pandaf/react/connect`).
