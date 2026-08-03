@@ -1,4 +1,5 @@
 import { PdfDriver, type DriverRenderInput } from "./types.js";
+import { resolvePaperDims } from "../paper.js";
 
 // Gotenberg driver: posts the (already asset-inlined) HTML plus optional
 // header/footer documents to Gotenberg's Chromium HTML route and streams the
@@ -24,8 +25,13 @@ export class GotenbergDriver extends PdfDriver {
     form.append("marginBottom", String(input.marginBottom ?? 0));
     if (input.marginLeft !== undefined) form.append("marginLeft", String(input.marginLeft));
     if (input.marginRight !== undefined) form.append("marginRight", String(input.marginRight));
-    form.append("paperWidth", String(input.paperWidth ?? 8.27));
-    form.append("paperHeight", String(input.paperHeight ?? 11.69));
+    const size = resolvePaperDims({
+      paperSize: input.paperSize,
+      paperWidth: input.paperWidth,
+      paperHeight: input.paperHeight,
+    });
+    form.append("paperWidth", String(size.paperWidth));
+    form.append("paperHeight", String(size.paperHeight));
     form.append("backgroundGraphics", String(input.backgroundGraphics ?? true));
 
     let res: Response;

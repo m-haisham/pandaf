@@ -366,6 +366,32 @@ describe("resolveMargins", () => {
     expect(measureFn).toHaveBeenCalledWith("<header>h</header>", expectedWidth);
   });
 
+  it("derives the viewport width from a named paperSize", async () => {
+    const measureFn = vi.fn().mockResolvedValue(0.5);
+    class SpyMeasurer extends ChromiumMeasurer {
+      readonly name = "spy";
+      measure = measureFn;
+    }
+    await resolveMargins(cache, new SpyMeasurer(), { paperSize: "letter" }, "<header>h</header>", undefined);
+    expect(measureFn).toHaveBeenCalledWith("<header>h</header>", 816); // 8.5in × 96
+  });
+
+  it("paperWidth takes precedence over paperSize for the viewport", async () => {
+    const measureFn = vi.fn().mockResolvedValue(0.5);
+    class SpyMeasurer extends ChromiumMeasurer {
+      readonly name = "spy";
+      measure = measureFn;
+    }
+    await resolveMargins(
+      cache,
+      new SpyMeasurer(),
+      { paperSize: "letter", paperWidth: 10 },
+      "<header>h</header>",
+      undefined,
+    );
+    expect(measureFn).toHaveBeenCalledWith("<header>h</header>", 960);
+  });
+
   // ---------------------------------------------------------------------------
   // Measurement cache
   // ---------------------------------------------------------------------------

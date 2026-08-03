@@ -1,4 +1,5 @@
 import { PdfDriver, type DriverRenderInput } from "./types.js";
+import { resolvePaperDims } from "../paper.js";
 
 export interface ChromiumDriverOptions {
   /**
@@ -21,7 +22,10 @@ export interface ChromiumDriverOptions {
 
 export interface PuppeteerPage {
   setContent(html: string, options: { waitUntil: string }): Promise<void>;
-  evaluate(fn: (...args: never[]) => unknown, ...args: unknown[]): Promise<unknown>;
+  evaluate(
+    fn: (...args: never[]) => unknown,
+    ...args: unknown[]
+  ): Promise<unknown>;
   evaluate<T>(fn: () => T): Promise<T>;
   pdf(options: Record<string, unknown>): Promise<Uint8Array>;
   setViewport(options: { width: number; height: number }): Promise<void>;
@@ -57,7 +61,10 @@ export class ChromiumDriver extends PdfDriver {
     this.browserWSEndpoint = options.browserWSEndpoint;
     this.browserURL = options.browserURL;
     this.executablePath = options.executablePath;
-    this.launchArgs = options.launchArgs ?? ["--no-sandbox", "--disable-setuid-sandbox"];
+    this.launchArgs = options.launchArgs ?? [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+    ];
     this.reuseBrowser = options.reuseBrowser ?? true;
     this.connected = Boolean(this.browserWSEndpoint || this.browserURL);
   }
@@ -129,9 +136,20 @@ export class ChromiumDriver extends PdfDriver {
         );
       }
 
-      const pdf = await page.pdf({
+      const size = resolvePaperDims({
+        paperSize: input.paperSize,
+        paperWidth: input.paperWidth,
+        paperHeight: input.paperHeight,
+      });
+
+      const pdf: Uint8Array = await page.pdf({
         printBackground: input.backgroundGraphics ?? true,
-        format: input.paperSize ?? "A4",
+        ...(size.format
+          ? { format: size.format }
+          : {
+              width: `${size.paperWidth}in`,
+              height: `${size.paperHeight}in`,
+            }),
         marginTop: input.marginTop ?? 0,
         marginBottom: input.marginBottom ?? 0,
         marginLeft: input.marginLeft,

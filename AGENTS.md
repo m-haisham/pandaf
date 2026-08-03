@@ -82,15 +82,17 @@ const pandaf = createPandaf({ templatesDir, driver });
 // Dev mode — explicit server (consumer controls lifecycle)
 const devServer = await createServer({
   server: { middlewareMode: true },
-  appType: 'custom',
+  appType: "custom",
 });
 const pandaf = createPandaf({ templatesDir, driver, devServer });
 
 // Prod mode
 const pandaf = createPandaf({
-  templatesDir, driver, mode: 'production',
-  manifestPath: './dist/pdf-manifest.json',
-  css: './dist/pandaf.css',
+  templatesDir,
+  driver,
+  mode: "production",
+  manifestPath: "./dist/pdf-manifest.json",
+  css: "./dist/pandaf.css",
 });
 ```
 
@@ -114,7 +116,8 @@ drivers/            pluggable PDF backends
   measurement.ts    ChromiumMeasurer + PuppeteerMeasurer + resolveMargins
 html.ts             wrapBody() / wrapHeader() / wrapFooter() document shells
 inline-assets.ts    inlineAssetsPlugin() + inlineCssAssets() + inlineHtmlAssets()
-preview.ts          buildPreviewHtml() + PAPER_SIZES
+paper.ts            PAPER_SIZES + resolvePaperDims — shared page-size model
+preview.ts          buildPreviewHtml() + re-exports PAPER_SIZES
 layout.ts           shared layout types (TemplateKind, DiscoveredLayout, Discovery, PdfManifest)
 renderer.ts         dev vs. prod render strategy (createDevRenderer / createProdRenderer)
 vite-utils.ts       resolvePluginOpts() + PandafPluginOptions
@@ -238,9 +241,9 @@ section's own props, so header/footer are never forced to share the body's data:
 
 ```ts
 generatePdf("invoice", {
-  header:  { id, customerName },
-  body:    { id, customerName },
-  footer:  { id, customerName },
+  header: { id, customerName },
+  body: { id, customerName },
+  footer: { id, customerName },
   options: { marginTop: 24, marginBottom: 24 }, // Gotenberg margins
 });
 ```
@@ -330,9 +333,9 @@ Rules:
   (`ssrLoadModule`) and build (SSR entry) automatically; no registry to maintain.
 - Each template gets **its own typed Elysia route** (e.g. `POST /invoice`), not a
   single generic public endpoint — TypeBox validates the `{ header?, body, footer?,
-  options }` payload per template at the edge.
+options }` payload per template at the edge.
 - **Styling**: templates use Tailwind utility classes. `app.css` (`@import
-  "tailwindcss";`) is compiled by the `@tailwindcss/vite` Vite plugin, included
+"tailwindcss";`) is compiled by the `@tailwindcss/vite` Vite plugin, included
   in the consumer's Vite config. The `@pandaf/vue/vite` plugin's
   `configureServer` writes compiled CSS to `.pandaf/pandaf.css` on file changes;
   `createPandaf()` reads it and inlines it into every rendered section.
@@ -345,7 +348,7 @@ Rules:
 
 ## Naming Conventions
 
-- **Reveal intent, skip type hints**: `items: string[]`, not `itemsArray`. Name says what it *is for*, not its shape.
+- **Reveal intent, skip type hints**: `items: string[]`, not `itemsArray`. Name says what it _is for_, not its shape.
 - **Casing**: `camelCase` for variables/functions, `PascalCase` for types/interfaces/classes/components, `SCREAMING_SNAKE_CASE` for module-level constants and env vars. Don't prefix interfaces with `I`.
 - **Booleans read as predicates**: `isActive`, `hasPermission`, `canEdit` — never bare adjectives (`active`) or negated forms (`isNotValid`).
 - **Async functions get a verb**: `fetchUser()` not `user()`. Mutators are imperative (`sortItems`), pure derivations are noun-ish (`sortedItems`).
@@ -360,7 +363,7 @@ Rules:
 ## Comments
 
 - Default to no comments. Code should read clearly from names and structure alone.
-- Doc comments (`/** ... */`) are for succinct *intent*, one line where possible — what the thing is for, not how it works. Skip `@param`, `@returns`, and other tag boilerplate; the type signature already says that.
+- Doc comments (`/** ... */`) are for succinct _intent_, one line where possible — what the thing is for, not how it works. Skip `@param`, `@returns`, and other tag boilerplate; the type signature already says that.
 - Inline comments are only for **why**, never **what**: a non-obvious invariant, a constraint from `docs/reference.md`, a workaround for a specific bug. If deleting the comment wouldn't confuse a future reader, delete it.
 
 ## TypeScript
@@ -380,7 +383,7 @@ Rules:
 
 ## Module Organization
 
-- **Internal imports within a subfolder use sibling paths** (`./types.js`), never the subfolder's own barrel (`./index.js`). Barrel files (`cache/index.ts`, `drivers/index.ts`) are re-export surfaces for *external* consumers only.
+- **Internal imports within a subfolder use sibling paths** (`./types.js`), never the subfolder's own barrel (`./index.js`). Barrel files (`cache/index.ts`, `drivers/index.ts`) are re-export surfaces for _external_ consumers only.
 - **Cross-folder imports go through the target's barrel** when importing a public symbol (`../cache/index.js`), or through the specific sibling file when importing an internal/unguaranteed symbol.
 - **No circular dependencies.** The dependency graph must be a clean DAG: `index.ts` → subfolder barrels → sibling files within each subfolder. Subfolder files must never import from `index.ts` or from a sibling subfolder's barrel in a way that creates a cycle.
 - **Optional peer dependencies must be lazily imported.** If a module depends on an optional peer (`elysia`, `vite`, `puppeteer`), it must use a dynamic `import()` inside the function that needs it — never a static top-level `import`. The library must be loadable without the optional peer installed. Static `import type` is fine (erased at runtime).

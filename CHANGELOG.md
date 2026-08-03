@@ -15,9 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **core:** Added `getDevServer()` method to `PandafRenderer` interface.
 - **vue:** Added `devServer` getter on `createPandaf()` result, exposing the Vite dev server for lifecycle control and middleware mounting.
 - **react:** Added `devServer` getter on `createPandaf()` result.
+- **core:** Added shared paper-size resolution (`PAPER_SIZES`, `resolvePaperDims`) so both drivers and the preview page derive geometry from one table (A0–A6, Letter, Legal, Tabloid).
+- **vue, react:** Added `paperSize` to `GeneratePdfOptions` (e.g. `"a4"`, `"letter"`, `"legal"`) alongside the existing `paperWidth`/`paperHeight` (inches) so consumers can pick the PDF page size per request.
+- **core:** The live-preview Download button now appends the selected paper size (`?paperSize=...`) to the download URL, so the downloaded PDF matches the preview selection.
+- **server:** Both example consumers accept `paperSize`/`paperWidth`/`paperHeight` in the request `options` payload and a `?paperSize=` query on the `/invoice/pdf` and `/pos-order/pdf` endpoints.
 
 ### Fixed
 
+- **core:** The Chromium driver now honors custom `paperWidth`/`paperHeight` (previously ignored — it always printed A4). Named `paperSize` maps to a Puppeteer format; custom dimensions use Puppeteer's `width`/`height` in inches.
+- **core:** The Gotenberg driver now resolves named `paperSize` values into the correct `paperWidth`/`paperHeight` in inches instead of always defaulting to A4.
+- **core:** Header/footer measurement now sizes the viewport from the requested `paperSize`, so measured banner heights match the actual paper geometry.
 - **vue, react:** Preview pages no longer enter an infinite reload loop when running without a standalone `vite dev` process. Both example consumers now create the Vite dev server explicitly with a dedicated HMR port (`hmr: { port: 5173 }` for vue, `5174` for react) and mount its HTTP middlewares via `mountConnect`. The preview page's HMR WebSocket client connects to Vite's dedicated HMR port, enabling hot reload when templates change. In production mode, `vitePort` is omitted and no WebSocket is injected.
 
 ## [0.1.2] - 2026-07-22

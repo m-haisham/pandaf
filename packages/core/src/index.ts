@@ -30,6 +30,9 @@ export {
 export { buildPreviewHtml, PAPER_SIZES } from "./preview.js";
 export type { PreviewHtmlOptions, PaperSize } from "./preview.js";
 
+export { resolvePaperDims } from "./paper.js";
+export type { PaperOptions, ResolvedPaperSize } from "./paper.js";
+
 export type {
   TemplateKind,
   DiscoveredLayout,

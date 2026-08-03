@@ -263,6 +263,32 @@ const pandaf = createPandaf<PandafProps>({ templatesDir, driver, devServer });
 pandaf.generatePdf("invoice", { header, body, footer, options }); // fully type-checked
 ```
 
+### 4.3.3 Page Size & Margins
+
+The `options` payload controls paper geometry and margins. Page size can be a
+named size (`paperSize`) or a fully custom `paperWidth`/`paperHeight` in inches
+(custom dimensions take precedence):
+
+```ts
+pandaf.generatePdf("invoice", {
+  body: { /* ... */ },
+  options: {
+    paperSize: "letter",          // "a0"–"a6", "letter", "legal", "tabloid" (default "a4")
+    // or fully custom: paperWidth: 8.5, paperHeight: 11,
+    marginTop: 0.5, marginBottom: 0.5,
+    marginLeft: 0.75, marginRight: 0.75,
+  },
+});
+```
+
+Both drivers honor these options — the Chromium driver maps named sizes to a
+Puppeteer `format` and custom sizes to Puppeteer `width`/`height`; the Gotenberg
+driver sends the resolved width/height in inches. Header/footer measurement
+sizes its viewport from the requested paper width so banner heights match the
+actual page geometry. The live-preview page shares the same `PAPER_SIZES` table,
+and its Download button passes the selected size through to the PDF endpoint as
+`?paperSize=...`.
+
 ### 4.4 Building for Production
 
 The consumer adds the pandaf plugin to their `vite.config.ts`:

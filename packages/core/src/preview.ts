@@ -1,12 +1,8 @@
-export const PAPER_SIZES = {
-  a4: { width: 210, height: 297, label: "A4" },
-  a3: { width: 297, height: 420, label: "A3" },
-  letter: { width: 216, height: 279, label: "Letter" },
-  legal: { width: 216, height: 356, label: "Legal" },
-  a5: { width: 148, height: 210, label: "A5" },
-} as const;
+import { PAPER_SIZES } from "./paper.js";
+import type { PaperSize } from "./paper.js";
 
-export type PaperSize = keyof typeof PAPER_SIZES;
+export { PAPER_SIZES } from "./paper.js";
+export type { PaperSize } from "./paper.js";
 
 const LS = "\n";
 
@@ -92,7 +88,11 @@ export async function buildPreviewHtml(
     '  var page = document.getElementById("pandaf-page");',
     '  var sel = document.getElementById("pandaf-paper");',
     '  var dim = document.getElementById("pandaf-dim");',
+    '  var dl = document.querySelector(".pandaf-download");',
     "  var sizes = " + SIZES_DATA + ";",
+    "  var downloadUrl = " +
+      (options.downloadUrl ? JSON.stringify(options.downloadUrl) : "null") +
+      ";",
     "  var PX_PER_MM = 3.7795;",
     "",
     "  function update() {",
@@ -104,8 +104,15 @@ export async function buildPreviewHtml(
     '    dim.textContent = s.width + " \\u00d7 " + s.height + " mm";',
     "  }",
     "",
+    "  function updateDownload() {",
+    "    if (!dl || !downloadUrl) return;",
+    '    var sep = downloadUrl.indexOf("?") >= 0 ? "&" : "?";',
+    '    dl.href = downloadUrl + sep + "paperSize=" + encodeURIComponent(sel.value);',
+    "  }",
+    "",
     "  update();",
-    '  sel.addEventListener("change", update);',
+    "  updateDownload();",
+    '  sel.addEventListener("change", function() { update(); updateDownload(); });',
     '  window.addEventListener("resize", update);',
     "})();",
   ].join(LS);

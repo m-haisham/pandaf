@@ -60,6 +60,8 @@ export interface GeneratePdfOptions {
   extraMarginTop?: number;
   /** Extra margin (inches) added on top of the resolved marginBottom (user-provided or measured). Defaults to 0. */
   extraMarginBottom?: number;
+  /** Named paper size (e.g. "a4", "letter", "legal"). Ignored when `paperWidth`/`paperHeight` are given. Defaults to a4. */
+  paperSize?: PaperSize;
   paperWidth?: number;
   paperHeight?: number;
   measureTimeoutMs?: number;
@@ -106,6 +108,8 @@ export {
   ChromiumMeasurer,
   PuppeteerMeasurer,
   resolveMargins,
+  resolvePaperDims,
+  PAPER_SIZES,
 } from "@pandaf/core";
 export type {
   DriverRenderInput,
@@ -234,6 +238,7 @@ export function createPandaf<
       header,
       footer,
       ...margins,
+      paperSize: data.options?.paperSize,
       paperWidth: data.options?.paperWidth,
       paperHeight: data.options?.paperHeight,
     });

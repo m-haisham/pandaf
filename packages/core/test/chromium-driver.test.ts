@@ -96,6 +96,42 @@ describe("ChromiumDriver", () => {
     );
   });
 
+  it("uses the named paperSize format when provided", async () => {
+    const driver = new ChromiumDriver();
+    await driver.render({ body: "<html>b</html>", paperSize: "letter" });
+    expect(pagePdf).toHaveBeenCalledWith(
+      expect.objectContaining({ format: "LETTER" }),
+    );
+  });
+
+  it("uses custom width/height (inches) and omits format", async () => {
+    const driver = new ChromiumDriver();
+    await driver.render({
+      body: "<html>b</html>",
+      paperWidth: 6,
+      paperHeight: 4,
+    });
+    expect(pagePdf).toHaveBeenCalledWith(
+      expect.objectContaining({ width: "6in", height: "4in" }),
+    );
+    expect(pagePdf).not.toHaveBeenCalledWith(
+      expect.objectContaining({ format: expect.anything() }),
+    );
+  });
+
+  it("custom width/height take precedence over paperSize", async () => {
+    const driver = new ChromiumDriver();
+    await driver.render({
+      body: "<html>b</html>",
+      paperSize: "letter",
+      paperWidth: 5,
+      paperHeight: 7,
+    });
+    expect(pagePdf).toHaveBeenCalledWith(
+      expect.objectContaining({ width: "5in", height: "7in" }),
+    );
+  });
+
   it("reuses a single browser and closes it on close()", async () => {
     const driver = new ChromiumDriver();
     await driver.render({ body: "1" });

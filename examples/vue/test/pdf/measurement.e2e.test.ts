@@ -54,13 +54,13 @@ let gotenbergAvailable = false;
 try {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 2000);
-  await fetch(`${GOTENBERG_URL}/forms/chromium/convert/html`, {
+  const res = await fetch(`${GOTENBERG_URL}/forms/chromium/convert/html`, {
     method: "POST",
     signal: ctrl.signal,
     body: new FormData(),
   });
   clearTimeout(timer);
-  gotenbergAvailable = true;
+  gotenbergAvailable = res.status !== 404;
 } catch {
   gotenbergAvailable = false;
 }

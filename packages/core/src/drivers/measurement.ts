@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { ChromiumDriver } from "./chromium.js";
-import type { Cache } from "../cache/types.js";
+import type { Cache } from "../cache/index.js";
+import { resolvePaperDims } from "../paper.js";
+import type { PaperSize } from "../paper.js";
 
 /** CSS pixels per inch — Chromium's print box uses 96 CSS px per inch. */
 export const PX_PER_INCH = 96;
@@ -79,10 +81,10 @@ export class PuppeteerMeasurer extends ChromiumMeasurer {
     try {
       await page.setViewport({ width, height: 3000 });
       await page.setContent(html, { waitUntil: "networkidle0" });
-      const px = await page.evaluate(() => {
+      const px = (await page.evaluate(() => {
         const el = document.body.firstElementChild;
         return el ? Math.ceil(el.getBoundingClientRect().height) : 0;
-      }) as number;
+      })) as number;
       return px / PX_PER_INCH;
     } catch {
       console.error(
@@ -104,6 +106,8 @@ export interface MarginInput {
   extraMarginTop?: number;
   /** Extra margin (inches) added on top of the resolved marginBottom (user-provided or measured). Defaults to 0. */
   extraMarginBottom?: number;
+  /** Named paper size. Used to size the measurement viewport; ignored when `paperWidth` is given. */
+  paperSize?: PaperSize;
   /** Paper width in inches. Used to size the measurement viewport. Defaults to A4 (8.27). */
   paperWidth?: number;
   /** Timeout in milliseconds for each measurement. Defaults to 3 000ms. */
@@ -166,9 +170,11 @@ export async function resolveMargins(
   let marginBottom: number | undefined = options.marginBottom;
 
   if (measurer) {
-    const viewportWidthPx = Math.round(
-      (options.paperWidth ?? DEFAULT_PAPER_WIDTH_INCHES) * PX_PER_INCH,
-    );
+    const paperWidthInches = resolvePaperDims({
+      paperSize: options.paperSize,
+      paperWidth: options.paperWidth,
+    }).paperWidth;
+    const viewportWidthPx = Math.round(paperWidthInches * PX_PER_INCH);
     const timeout = options.measureTimeoutMs ?? DEFAULT_MEASURE_TIMEOUT_MS;
 
     const tasks: Array<Promise<void>> = [];

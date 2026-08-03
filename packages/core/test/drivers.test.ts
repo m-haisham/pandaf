@@ -79,4 +79,39 @@ describe("GotenbergDriver", () => {
     );
     vi.unstubAllGlobals();
   });
+
+  it("sends named paperSize as width/height in inches", async () => {
+    const fakeBody = new ReadableStream();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(fakeBody, { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const driver = new GotenbergDriver("http://gotenberg.local");
+    await driver.render({ body: "<html>b</html>", paperSize: "letter" });
+
+    const [, init] = fetchMock.mock.calls[0];
+    const form = (init as RequestInit).body as FormData;
+    expect(form.get("paperWidth")).toBe("8.5");
+    expect(form.get("paperHeight")).toBe("10.98");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("sends custom paperWidth/paperHeight as-is", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new ReadableStream(), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const driver = new GotenbergDriver("http://gotenberg.local");
+    await driver.render({ body: "<html>b</html>", paperWidth: 6, paperHeight: 4 });
+
+    const [, init] = fetchMock.mock.calls[0];
+    const form = (init as RequestInit).body as FormData;
+    expect(form.get("paperWidth")).toBe("6");
+    expect(form.get("paperHeight")).toBe("4");
+
+    vi.unstubAllGlobals();
+  });
 });

@@ -52,6 +52,16 @@ describe("previewHtml — explicit devServer (no HMR port)", () => {
     expect(html).toContain("pandaf-toolbar");
   });
 
+  it("download button forwards the selected paper size as a query param", async () => {
+    const html = await kit.previewHtml("Hello", { body: { name: "X" } }, {
+      paperSize: "letter",
+      downloadUrl: "/invoice/pdf",
+    });
+    expect(html).toContain('class="pandaf-download" href="/invoice/pdf"');
+    expect(html).toContain('var downloadUrl = "/invoice/pdf";');
+    expect(html).toContain('dl.href = downloadUrl + sep + "paperSize="');
+  });
+
   it("does not inject live-reload when hmr is not provided", async () => {
     const html = await kit.previewHtml("Hello", { body: { name: "X" } });
     expect(html).not.toContain("@vite/client");

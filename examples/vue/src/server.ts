@@ -36,6 +36,9 @@ const optionsSchema = t.Object({
   marginBottom: t.Optional(t.Number()),
   marginLeft: t.Optional(t.Number()),
   marginRight: t.Optional(t.Number()),
+  paperSize: t.Optional(t.String()),
+  paperWidth: t.Optional(t.Number()),
+  paperHeight: t.Optional(t.Number()),
 });
 
 const invoiceSchema = t.Object({
@@ -311,35 +314,55 @@ export const app = new Elysia({ adapter: node() })
   )
   .get(
     "/invoice/pdf",
-    async () => {
+    async ({ query }) => {
       return pdfResponse(
-        await pandaf.generatePdf("invoice", INVOICE_MOCK),
+        await pandaf.generatePdf("invoice", {
+          ...INVOICE_MOCK,
+          options: {
+            ...INVOICE_MOCK.options,
+            paperSize: (query.paperSize as PaperSize) ?? undefined,
+          },
+        }),
         "invoice",
       );
     },
     {
+      query: t.Object({
+        paperSize: t.Optional(t.String()),
+      }),
       detail: {
         tags: ["PDF Templates"],
         summary: "Download invoice as PDF",
         description:
-          "Returns the invoice template rendered as a PDF using mock data.",
+          "Returns the invoice template rendered as a PDF using mock data. " +
+          "Pass `?paperSize=a4|letter|...` to control the paper size.",
       },
     },
   )
   .get(
     "/pos-order/pdf",
-    async () => {
+    async ({ query }) => {
       return pdfResponse(
-        await pandaf.generatePdf("pos.pos-order", POS_ORDER_MOCK),
+        await pandaf.generatePdf("pos.pos-order", {
+          ...POS_ORDER_MOCK,
+          options: {
+            ...POS_ORDER_MOCK.options,
+            paperSize: (query.paperSize as PaperSize) ?? undefined,
+          },
+        }),
         "pos-order",
       );
     },
     {
+      query: t.Object({
+        paperSize: t.Optional(t.String()),
+      }),
       detail: {
         tags: ["PDF Templates"],
         summary: "Download POS receipt as PDF",
         description:
-          "Returns the POS receipt template rendered as a PDF using mock data.",
+          "Returns the POS receipt template rendered as a PDF using mock data. " +
+          "Pass `?paperSize=a4|letter|...` to control the paper size.",
       },
     },
   )
