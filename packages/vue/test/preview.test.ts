@@ -74,13 +74,14 @@ describe("previewHtml — explicit devServer (no HMR port)", () => {
     expect(html).toContain("@vite/client");
   });
 
-  it("injects raw WebSocket for pandaf:reload when hmr is a port number", async () => {
+  it("registers a pandaf:reload listener on Vite's HMR socket when hmr is a number", async () => {
     const html = await kit.previewHtml("Hello", { body: { name: "X" } }, {
       hmr: 5173,
     });
-    expect(html).toContain("@vite/client");
-    expect(html).toContain("ws://");
-    expect(html).toContain("pandaf:reload");
+    expect(html).toContain('src="/@vite/client"');
+    expect(html).toContain('import { createHotContext } from "/@vite/client"');
+    expect(html).toContain('createHotContext("/__pandaf/preview")');
+    expect(html).toContain('"pandaf:reload"');
   });
 
   it("renders a composite template with auto-paired header", async () => {

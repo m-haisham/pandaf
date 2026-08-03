@@ -180,6 +180,14 @@ auto-discovers `vite.config.ts`), uses it for `ssrLoadModule`, and closes it
 on `pandaf.close()`. When `devServer` is provided, the consumer owns the
 lifecycle — `pandaf.close()` will NOT close it.
 
+When the consumer mounts the Vite middlewares via `elysiaMiddleware()`, the
+library eagerly creates the auto-created dev server (dev mode) before mounting
+them, so Vite's own assets — including `@vite/client` and the preview page's
+HMR client — are served on the consumer's app. The preview page subscribes to
+the `pandaf:reload` custom event on Vite's HMR WebSocket via `createHotContext`
+(no raw WebSocket, which Vite 5.4's cross-origin token check would reject), so
+template edits hot-reload the preview.
+
 ```ts
 // src/renderer.ts — dev renderer
 export function createDevRenderer(

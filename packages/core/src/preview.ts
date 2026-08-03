@@ -15,10 +15,11 @@ export interface PreviewHtmlOptions {
    */
   css?: string | Promise<string>;
   /**
-   * When `true`, injects Vite's `@vite/client` script for Vite HMR support.
-   * When a number, also sets up a raw WebSocket to the given port to listen
-   * for `pandaf:reload` custom events broadcast by the pandaf Vite plugin on
-   * template changes. Omit or set to `false` to disable live reload.
+   * When `true`, injects Vite's `@vite/client` script and registers a
+   * `pandaf:reload` listener on Vite's HMR WebSocket (via `createHotContext`),
+   * so the preview page live-reloads when a template changes. A `number` is
+   * accepted for backward compatibility and behaves the same as `true`. Omit
+   * or set to `false` to disable live reload.
    */
   hmr?: boolean | number;
   /**
@@ -34,23 +35,12 @@ const SIZES_DATA = JSON.stringify(PAPER_SIZES);
 function hmrClient(hmr?: boolean | number): string {
   if (!hmr) return "";
   const lines = ['<script type="module" src="/@vite/client"></script>'];
-  if (typeof hmr === "number") {
-    lines.push(
-      "<script>",
-      "(function(){",
-      "  var host = location.hostname;",
-      "  var ws = new WebSocket('ws://'+host+':'+" + hmr + ");",
-      "  ws.onmessage = function(e) {",
-      "    try {",
-      "      var d = JSON.parse(e.data);",
-      "      if (d.type === 'custom' && d.event === 'pandaf:reload') location.reload();",
-      "    } catch(e) {}",
-      "  };",
-      "  ws.onclose = function() { setTimeout(function() { location.reload(); }, 3000); };",
-      "})();",
-      "\x3c/script>",
-    );
-  }
+  lines.push(
+    '<script type="module">',
+    'import { createHotContext } from "/@vite/client";',
+    'createHotContext("/__pandaf/preview").on("pandaf:reload", () => location.reload());',
+    "\x3c/script>",
+  );
   return lines.join(LS);
 }
 

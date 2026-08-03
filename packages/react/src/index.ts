@@ -348,19 +348,10 @@ export function createPandaf<
 
     const css = await renderer.resolveCss();
 
-    let hmr: PreviewHtmlOptions["hmr"] = previewOptions?.hmr;
-    if (hmr === true) {
-      const srv = renderer.getDevServer();
-      if (srv) {
-        const port = (srv.config.server.hmr as any)?.port;
-        if (typeof port === "number") hmr = port;
-      }
-    }
-
     return buildPreviewHtml(sections, {
       paperSize: previewOptions?.paperSize,
       css,
-      hmr,
+      hmr: previewOptions?.hmr,
       downloadUrl: previewOptions?.downloadUrl,
     });
   }
@@ -374,7 +365,7 @@ export function createPandaf<
       return renderer.getDevServer();
     },
     async elysiaMiddleware() {
-      const server = renderer.getDevServer();
+      const server = isDev ? await renderer.ensureDevServer() : undefined;
       if (server) return mountConnect(server.middlewares);
       const { Elysia } = await import("elysia");
       return new Elysia() as ReturnType<typeof mountConnect>;

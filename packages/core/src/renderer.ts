@@ -15,6 +15,12 @@ export interface PandafRenderer {
   layoutOf(name: string): Promise<{ header?: string; footer?: string }>;
   resolveCss(): Promise<string>;
   getDevServer(): ViteDevServer | undefined;
+  /**
+   * Returns the Vite dev server, creating the owned one (from the consumer's
+   * `vite.config.ts`) if none was provided. No-op in production — returns
+   * `undefined` so the consumer's server needs no Vite middlewares mounted.
+   */
+  ensureDevServer(): Promise<ViteDevServer | undefined>;
   close(): Promise<void>;
 }
 
@@ -89,6 +95,9 @@ export function createDevRenderer(opts: {
     getDevServer() {
       return opts.devServer ?? ownedServer;
     },
+    async ensureDevServer() {
+      return getServer();
+    },
     async close() {
       discovery = undefined;
       if (ownedServer) {
@@ -131,6 +140,9 @@ export function createProdRenderer(opts: {
       return cssCache;
     },
     getDevServer() {
+      return undefined;
+    },
+    async ensureDevServer() {
       return undefined;
     },
     async close() {
