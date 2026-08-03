@@ -14,9 +14,9 @@ export function wrapBody(content: string, css = ""): string {
 export function wrapHeader(content: string, css = ""): string {
   const reset = `
     <style>
-      * {
+      html, body {
         box-sizing: border-box !important;
-        font-size: 16px !important;
+        font-size: 16px;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
@@ -40,9 +40,9 @@ export function wrapHeader(content: string, css = ""): string {
 export function wrapFooter(content: string, css = ""): string {
   const reset = `
     <style>
-      * {
+      html, body {
         box-sizing: border-box !important;
-        font-size: 16px !important;
+        font-size: 16px;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
