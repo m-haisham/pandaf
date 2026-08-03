@@ -7,14 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.3] - 2026-08-01
-
 ### Added
 
-- **core:** Added `mountConnect` adapter to mount Connect/Express-style middleware (e.g. Vite's dev server middlewares) inside an Elysia server. Uses `node-mocks-http` to adapt between Web and Node.js request/response types. Exported as `@pandaf/core` and re-exported from both `@pandaf/vue` and `@pandaf/react` (also available at `@pandaf/vue/connect` and `@pandaf/react/connect`).
-- **core:** Added `getDevServer()` method to `PandafRenderer` interface.
-- **vue:** Added `devServer` getter on `createPandaf()` result, exposing the Vite dev server for lifecycle control and middleware mounting.
-- **react:** Added `devServer` getter on `createPandaf()` result.
 - **core:** Added shared paper-size resolution (`PAPER_SIZES`, `resolvePaperDims`) so both drivers and the preview page derive geometry from one table (A0–A6, Letter, Legal, Tabloid).
 - **vue, react:** Added `paperSize` to `GeneratePdfOptions` (e.g. `"a4"`, `"letter"`, `"legal"`) alongside the existing `paperWidth`/`paperHeight` (inches) so consumers can pick the PDF page size per request.
 - **core:** The live-preview Download button now appends the selected paper size (`?paperSize=...`) to the download URL, so the downloaded PDF matches the preview selection.
@@ -27,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **core:** Header/footer measurement now sizes the viewport from the requested `paperSize`, so measured banner heights match the actual paper geometry.
 - **core, vue, react:** The preview page's live-reload no longer opens its own raw WebSocket (which Vite 5.4 rejects with HTTP 400 because of its cross-origin WebSocket token check). It now listens for the `pandaf:reload` custom event on Vite's own HMR WebSocket via `createHotContext`, so template edits hot-reload the preview again.
 - **core, vue, react:** `elysiaMiddleware()` now eagerly creates the (auto-created) Vite dev server in dev mode before mounting its middlewares, so `@vite/client` and the preview page's HMR client are actually served on the consumer's app (previously the lazy-created dev server was mounted too late and `/@vite/client` returned 404).
+
+## [0.1.3] - 2026-08-01
+
+### Added
+
+- **core:** Added `mountConnect` adapter to mount Connect/Express-style middleware (e.g. Vite's dev server middlewares) inside an Elysia server. Uses `node-mocks-http` to adapt between Web and Node.js request/response types. Exported as `@pandaf/core` and re-exported from both `@pandaf/vue` and `@pandaf/react` (also available at `@pandaf/vue/connect` and `@pandaf/react/connect`).
+- **core:** Added `getDevServer()` method to `PandafRenderer` interface.
+- **vue:** Added `devServer` getter on `createPandaf()` result, exposing the Vite dev server for lifecycle control and middleware mounting.
+- **react:** Added `devServer` getter on `createPandaf()` result.
+
+### Fixed
+
 - **vue, react:** Preview pages no longer enter an infinite reload loop when running without a standalone `vite dev` process. Both example consumers now create the Vite dev server explicitly with a dedicated HMR port (`hmr: { port: 5173 }` for vue, `5174` for react) and mount its HTTP middlewares via `mountConnect`. The preview page's HMR WebSocket client connects to Vite's dedicated HMR port, enabling hot reload when templates change. In production mode, `vitePort` is omitted and no WebSocket is injected.
 
 ## [0.1.2] - 2026-07-22
