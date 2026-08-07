@@ -29,7 +29,7 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
   const defaultPaperSize: PaperSize =
     opts.preview === true || typeof opts.preview === "boolean"
       ? "a4"
-      : ((opts.preview as any)?.defaultPaperSize ?? "a4");
+      : (opts.preview?.defaultPaperSize ?? "a4");
 
   let discovery: Awaited<ReturnType<typeof discoverLayouts>> | undefined;
   let discoveryCache: Promise<void> | undefined;
@@ -174,7 +174,9 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
                 /* CSS may not be configured; proceed without it */
               }
             }
-            const hmrPort = (server.config.server.hmr as any)?.port;
+            const hmrConfig = server.config.server.hmr;
+            const hmrPort =
+              typeof hmrConfig === "object" ? hmrConfig?.port : undefined;
             const html = await buildPreviewHtml(sections, {
               paperSize: defaultPaperSize,
               css,
@@ -230,7 +232,8 @@ async function compileAndSaveCss(
   // (configureServer hooks, watchers, etc.) on this temp server.
   const userPlugins = (loaded?.config?.plugins ?? [])
     .flat()
-    .filter((p: any) => p?.name !== "pandaf");
+    .filter(isPlugin)
+    .filter((plugin) => plugin.name !== "pandaf");
 
   const server = await createServer({
     ...loaded?.config,
@@ -252,6 +255,14 @@ async function compileAndSaveCss(
   } finally {
     await server.close();
   }
+}
+
+function isPlugin(value: unknown): value is Plugin {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { name?: unknown }).name === "string"
+  );
 }
 
 export default pandaf;
