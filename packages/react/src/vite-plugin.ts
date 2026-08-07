@@ -26,6 +26,7 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
 
   let discovery: Awaited<ReturnType<typeof discoverLayouts>> | undefined;
   let discoveryCache: Promise<void> | undefined;
+  let capturedUserConfig: import("vite").UserConfig | undefined;
 
   async function getDiscovery() {
     if (!discovery) {
@@ -225,7 +226,8 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
         },
       );
     },
-    async config(_userConfig, { command }) {
+    async config(userConfig, { command }) {
+      capturedUserConfig = userConfig;
       if (command !== "build") return;
       const disc = await discoverLayouts(opts.templatesDir);
       return {
@@ -238,7 +240,7 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
       await generateTypes(opts.templatesDir, typesOut);
 
       if (cssEntry) {
-        await compileAndSaveCss(cssEntry, outDir);
+        await compileAndSaveCss(cssEntry, outDir, capturedUserConfig);
       }
     },
   };
@@ -247,27 +249,33 @@ export function pandaf(opts: PandafPluginOptions): Plugin {
 async function compileAndSaveCss(
   cssEntry: string,
   outDir: string,
+  userConfig?: import("vite").UserConfig,
 ): Promise<void> {
   const { createServer, loadConfigFromFile } = await import("vite");
 
-  // Load the consumer's vite.config.* so their plugins (Tailwind,
-  // component libraries, path aliases, etc.) are active. We create a
-  // dev server (command: "serve") so we can ssrLoadModule the CSS entry.
-  const loaded = await loadConfigFromFile(
-    { command: "serve", mode: "production" },
-    undefined,
-    process.cwd(),
-  );
+  // Reuse the consumer's config already captured from the outer build's
+  // config() hook so their plugins (Tailwind, component libraries, path
+  // aliases, etc.) are active, without re-reading vite.config.* from disk.
+  // Fall back to loadConfigFromFile only if it wasn't captured (defensive).
+  const resolvedUserConfig =
+    userConfig ??
+    (
+      await loadConfigFromFile(
+        { command: "serve", mode: "production" },
+        undefined,
+        process.cwd(),
+      )
+    )?.config;
 
   // Drop the pandaf plugin itself to avoid recursion / side-effects
   // (configureServer hooks, watchers, etc.) on this temp server.
-  const userPlugins = (loaded?.config?.plugins ?? [])
+  const userPlugins = (resolvedUserConfig?.plugins ?? [])
     .flat()
     .filter(isPlugin)
     .filter((plugin) => plugin.name !== "pandaf");
 
   const server = await createServer({
-    ...loaded?.config,
+    ...resolvedUserConfig,
     configFile: false,
     plugins: userPlugins,
     server: { middlewareMode: true },
