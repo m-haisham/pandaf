@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { PaperSize } from "./paper.js";
 
 export interface PandafPluginOptions {
   templatesDir: string;
@@ -9,7 +10,7 @@ export interface PandafPluginOptions {
     | boolean
     | {
         basePath?: string;
-        defaultPaperSize?: string;
+        defaultPaperSize?: PaperSize;
       };
 }
 

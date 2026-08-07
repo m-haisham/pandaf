@@ -1,7 +1,11 @@
-export { Cache, DEFAULT_TTL_MS } from "./cache/types.js";
-export { NoopCache } from "./cache/noop.js";
-export { InMemoryCache } from "./cache/memory.js";
-export { RedisCache, type RedisClient } from "./cache/redis.js";
+export {
+  Cache,
+  DEFAULT_TTL_MS,
+  NoopCache,
+  InMemoryCache,
+  RedisCache,
+  type RedisClient,
+} from "./cache/index.js";
 
 export {
   PdfDriver,

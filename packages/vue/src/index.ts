@@ -67,10 +67,17 @@ export interface GeneratePdfOptions {
   measureTimeoutMs?: number;
 }
 
+interface SectionData {
+  body?: unknown;
+  header?: unknown;
+  footer?: unknown;
+  options?: GeneratePdfOptions;
+}
+
 export interface Pandaf<
-  Props extends Record<string, { body: any; options?: any }> = Record<
+  Props extends Record<string, { body: unknown; options?: unknown }> = Record<
     string,
-    { body: any }
+    { body: unknown }
   >,
 > {
   renderHtml<T extends keyof Props>(
@@ -123,9 +130,9 @@ export { mountConnect };
 export type { ConnectMiddleware, ConnectApp } from "@pandaf/core/connect";
 
 export function createPandaf<
-  Props extends Record<string, { body: any; options?: any }> = Record<
+  Props extends Record<string, { body: unknown; options?: unknown }> = Record<
     string,
-    { body: any }
+    { body: unknown }
   >,
 >(options: PandafOptions): Pandaf<Props> {
   const templatesDir =
@@ -178,11 +185,11 @@ export function createPandaf<
     return wrapBody(inlined, css);
   }
 
-  async function renderHtml(template: any, data: any): Promise<string> {
+  async function renderHtml(template: string, data: unknown): Promise<string> {
     return renderOne(template, data);
   }
 
-  async function renderComposite(template: any, data: any): Promise<string> {
+  async function renderComposite(template: string, data: SectionData): Promise<string> {
     const layout = await renderer.layoutOf(template);
 
     const bodyRaw = await renderer.render(template, data.body);
@@ -211,8 +218,8 @@ export function createPandaf<
   }
 
   async function generatePdf(
-    template: any,
-    data: any,
+    template: string,
+    data: SectionData,
   ): Promise<ReadableStream> {
     const layout = await renderer.layoutOf(template);
     const body = await renderOne(template, data.body);
@@ -245,8 +252,8 @@ export function createPandaf<
   }
 
   async function previewHtml(
-    template: any,
-    data: any,
+    template: string,
+    data: SectionData,
     previewOptions?: PreviewHtmlOptions,
   ): Promise<string> {
     const layout = await renderer.layoutOf(template);
@@ -277,6 +284,8 @@ export function createPandaf<
     });
   }
 
+  // The internal handlers operate on the erased `string`/`SectionData` shape;
+  // `Pandaf<Props>` re-attaches the caller's per-template generic types.
   return {
     renderHtml,
     renderComposite,
@@ -296,5 +305,5 @@ export function createPandaf<
       await driver.close();
       await measurer?.close();
     },
-  };
+  } as unknown as Pandaf<Props>;
 }

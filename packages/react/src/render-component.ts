@@ -1,16 +1,15 @@
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 
-// React templates export named components: Body, Header, Footer.
-// A module may export any subset — Body is required, Header/Footer optional.
+type TemplateProps = Record<string, unknown>;
+
 // Both dev (Vite ssrLoadModule) and prod (dynamic import) paths funnel through
 // here so dev and prod produce byte-identical HTML for the same input.
-
 export type TemplateModule = {
-  Body?: React.ComponentType<any>;
-  Header?: React.ComponentType<any>;
-  Footer?: React.ComponentType<any>;
-  default?: React.ComponentType<any>;
+  Body?: React.ComponentType<TemplateProps>;
+  Header?: React.ComponentType<TemplateProps>;
+  Footer?: React.ComponentType<TemplateProps>;
+  default?: React.ComponentType<TemplateProps>;
 };
 
 export async function renderComponent(
@@ -19,7 +18,6 @@ export async function renderComponent(
 ): Promise<string> {
   const m = mod as TemplateModule;
 
-  // Body is the primary export (named Body, or default as fallback)
   const Component = m.Body ?? m.default;
   if (!Component) {
     throw new Error(
@@ -27,7 +25,7 @@ export async function renderComponent(
     );
   }
 
-  return renderToString(createElement(Component, (data ?? {}) as Record<string, unknown>));
+  return renderToString(createElement(Component, (data ?? {}) as TemplateProps));
 }
 
 export async function renderNamedComponent(
@@ -36,9 +34,7 @@ export async function renderNamedComponent(
   data: unknown,
 ): Promise<string> {
   const m = mod as TemplateModule;
-  const Component = m[exportName as keyof TemplateModule] as
-    | React.ComponentType<any>
-    | undefined;
+  const Component = m[exportName as keyof TemplateModule];
   if (!Component) return "";
-  return renderToString(createElement(Component, (data ?? {}) as Record<string, unknown>));
+  return renderToString(createElement(Component, (data ?? {}) as TemplateProps));
 }
