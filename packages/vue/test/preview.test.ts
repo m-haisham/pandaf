@@ -18,7 +18,7 @@ describe("previewHtml — explicit devServer (no HMR port)", () => {
       root: templatesDir,
       configFile: false,
       plugins: [vue(), inlineAssetsPlugin()],
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: 5315 } },
       appType: "custom",
       css: { devSourcemap: false },
     });
@@ -110,7 +110,7 @@ describe("previewHtml — explicit devServer (views/ convention)", () => {
       root: viewsDir,
       configFile: false,
       plugins: [vue(), inlineAssetsPlugin()],
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: 5316 } },
       appType: "custom",
       css: { devSourcemap: false },
     });

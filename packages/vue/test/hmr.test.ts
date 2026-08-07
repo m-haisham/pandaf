@@ -24,7 +24,7 @@ describe("HMR — pandaf plugin broadcasts via server.ws", () => {
         inlineAssetsPlugin(),
         pandaf({ templatesDir }),
       ],
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: 5313 } },
       appType: "custom",
       css: { devSourcemap: false },
     });

@@ -42,7 +42,7 @@ describe("tailwind CSS generation via @tailwindcss/vite plugin", () => {
       root: tmpDir,
       configFile: false,
       plugins: [tailwindcss()],
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: 5314 } },
       appType: "custom",
       css: { devSourcemap: false },
     });
