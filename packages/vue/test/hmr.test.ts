@@ -47,15 +47,21 @@ describe("HMR — pandaf plugin broadcasts via server.ws", () => {
     const original = await fs.readFile(templateFile, "utf-8");
     try {
       await fs.writeFile(templateFile, `<!-- hmr test ${Date.now()} -->\n${original}`);
-      await new Promise((r) => setTimeout(r, 500));
 
-      const reloadMsg = sentMessages.find(
-        (m) => m.type === "custom" && m.event === "pandaf:reload",
-      );
+      const deadline = Date.now() + 5000;
+      let reloadMsg: any;
+      while (Date.now() < deadline) {
+        reloadMsg = sentMessages.find(
+          (m) => m.type === "custom" && m.event === "pandaf:reload",
+        );
+        if (reloadMsg) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+
       expect(reloadMsg).toBeDefined();
       expect(reloadMsg.event).toBe("pandaf:reload");
     } finally {
       await fs.writeFile(templateFile, original);
     }
-  });
+  }, 10000);
 });
