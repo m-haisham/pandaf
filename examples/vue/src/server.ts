@@ -31,17 +31,17 @@ export const pandaf = createPandaf<PandafProps>({
   css: isDev ? undefined : path.resolve("dist/pandaf.css"),
 });
 
-const paperSizeSchema = t.Union([
-  t.Literal("a0"),
-  t.Literal("a1"),
-  t.Literal("a2"),
-  t.Literal("a3"),
-  t.Literal("a4"),
-  t.Literal("a5"),
-  t.Literal("a6"),
-  t.Literal("letter"),
-  t.Literal("legal"),
-  t.Literal("tabloid"),
+const paperSizeSchema = t.UnionEnum([
+  "a0",
+  "a1",
+  "a2",
+  "a3",
+  "a4",
+  "a5",
+  "a6",
+  "letter",
+  "legal",
+  "tabloid",
 ]);
 
 const optionsSchema = t.Object({
