@@ -31,12 +31,25 @@ export const pandaf = createPandaf<PandafProps>({
   css: isDev ? undefined : path.resolve("dist/pandaf.css"),
 });
 
+const paperSizeSchema = t.Union([
+  t.Literal("a0"),
+  t.Literal("a1"),
+  t.Literal("a2"),
+  t.Literal("a3"),
+  t.Literal("a4"),
+  t.Literal("a5"),
+  t.Literal("a6"),
+  t.Literal("letter"),
+  t.Literal("legal"),
+  t.Literal("tabloid"),
+]);
+
 const optionsSchema = t.Object({
   marginTop: t.Optional(t.Number()),
   marginBottom: t.Optional(t.Number()),
   marginLeft: t.Optional(t.Number()),
   marginRight: t.Optional(t.Number()),
-  paperSize: t.Optional(t.String()),
+  paperSize: t.Optional(paperSizeSchema),
   paperWidth: t.Optional(t.Number()),
   paperHeight: t.Optional(t.Number()),
 });
