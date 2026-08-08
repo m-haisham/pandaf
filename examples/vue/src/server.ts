@@ -31,12 +31,25 @@ export const pandaf = createPandaf<PandafProps>({
   css: isDev ? undefined : path.resolve("dist/pandaf.css"),
 });
 
+const paperSizeSchema = t.UnionEnum([
+  "a0",
+  "a1",
+  "a2",
+  "a3",
+  "a4",
+  "a5",
+  "a6",
+  "letter",
+  "legal",
+  "tabloid",
+]);
+
 const optionsSchema = t.Object({
   marginTop: t.Optional(t.Number()),
   marginBottom: t.Optional(t.Number()),
   marginLeft: t.Optional(t.Number()),
   marginRight: t.Optional(t.Number()),
-  paperSize: t.Optional(t.String()),
+  paperSize: t.Optional(paperSizeSchema),
   paperWidth: t.Optional(t.Number()),
   paperHeight: t.Optional(t.Number()),
 });

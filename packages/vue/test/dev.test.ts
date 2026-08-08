@@ -22,7 +22,7 @@ describe("createPandaf — dev mode with explicit devServer", () => {
       root: templatesDir,
       configFile: false,
       plugins: [vue(), inlineAssetsPlugin()],
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: 5311 } },
       appType: "custom",
       css: { devSourcemap: false },
     });
@@ -105,7 +105,7 @@ describe("createPandaf — views/ convention with reusable component", () => {
       root: viewsDir,
       configFile: false,
       plugins: [vue(), inlineAssetsPlugin()],
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: 5312 } },
       appType: "custom",
       css: { devSourcemap: false },
     });

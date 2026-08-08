@@ -18,7 +18,7 @@ describe("createPandaf — dev mode with explicit devServer", () => {
       root: templatesDir,
       configFile: false,
       plugins: [react(), inlineAssetsPlugin()],
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: 5302 } },
       appType: "custom",
       css: { devSourcemap: false },
     });
@@ -93,7 +93,7 @@ describe("createPandaf — views/ convention with reusable component", () => {
       root: viewsDir,
       configFile: false,
       plugins: [react(), inlineAssetsPlugin()],
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: 5303 } },
       appType: "custom",
       css: { devSourcemap: false },
     });
