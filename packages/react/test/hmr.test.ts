@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
@@ -43,24 +42,24 @@ describe("HMR — pandaf plugin broadcasts via server.ws (react)", () => {
   it("broadcasts pandaf:reload when a template is modified", async () => {
     sentMessages = [];
 
-    const original = await fs.readFile(templateFile, "utf-8");
-    try {
-      await fs.writeFile(templateFile, `{/* hmr test ${Date.now()} */}\n${original}`);
+    // Drive the plugin's own "change" handler directly instead of writing the
+    // file and waiting on a real chokidar event: native/polling fs watching
+    // is unreliable across OSes and CI runners (confirmed flaky even
+    // locally), and pandaf's wiring — not chokidar's delivery — is what this
+    // test is verifying.
+    devServer.watcher.emit("change", templateFile);
 
-      const deadline = Date.now() + 5000;
-      let reloadMsg: any;
-      while (Date.now() < deadline) {
-        reloadMsg = sentMessages.find(
-          (m) => m.type === "custom" && m.event === "pandaf:reload",
-        );
-        if (reloadMsg) break;
-        await new Promise((r) => setTimeout(r, 50));
-      }
-
-      expect(reloadMsg).toBeDefined();
-      expect(reloadMsg.event).toBe("pandaf:reload");
-    } finally {
-      await fs.writeFile(templateFile, original);
+    const deadline = Date.now() + 2000;
+    let reloadMsg: any;
+    while (Date.now() < deadline) {
+      reloadMsg = sentMessages.find(
+        (m) => m.type === "custom" && m.event === "pandaf:reload",
+      );
+      if (reloadMsg) break;
+      await new Promise((r) => setTimeout(r, 10));
     }
-  }, 10000);
+
+    expect(reloadMsg).toBeDefined();
+    expect(reloadMsg.event).toBe("pandaf:reload");
+  }, 5000);
 });
